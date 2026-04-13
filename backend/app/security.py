@@ -126,14 +126,17 @@ def get_current_user(
 
 
 def get_admin_user(usr: Usuario = Depends(get_current_user)) -> Usuario:
-    # Debug para ver qué está llegando al servidor
-    print(f"DEBUG: Verificando permisos para {usr.email} con rol: '{usr.rol}' (Tipo: {type(usr.rol)})")
+    r = str(usr.rol).lower()
+    # Log para auditoría inmediata en la terminal
+    print(f"AUTH CHECK: {usr.email} (Rol detectado: {r})")
     
-    # Permitir si el rol es cualquiera de los niveles administrativos
-    admin_roles = ["admin", "superadmin", "empresa_admin"]
-    if str(usr.rol) not in admin_roles:
-        raise HTTPException(status_code=403, detail=f"Se requiere rol administrador. Tu rol actual es: {usr.rol}")
-    return usr
+    if "admin" in r or "superadmin" in r:
+        return usr
+        
+    raise HTTPException(
+        status_code=403, 
+        detail=f"Se requiere rol administrador. Tu rol actual es: {usr.rol}"
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,0 +1,51 @@
+﻿.\.venv\Scripts\python : Traceback 
+(most recent call last):
+En línea: 1 Carácter: 1
++ .\.venv\Scripts\python 
+test_import.py 2>&1 | Out-File 
+-FilePath test_ ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~
+    + CategoryInfo          : NotS 
+   pecified: (Traceback (most rec  
+  ent call last)::String) [], Re   
+ moteException
+    + FullyQualifiedErrorId : Nati 
+   veCommandError
+ 
+  File "C:\Users\lpraf\OneDrive\Doc
+umentos\Desarrollos\Poliverso\FACT_
+ELECTRONICA\aurelius\backend\test_i
+mport.py", line 2, in <module>
+    from app import main
+  File "C:\Users\lpraf\OneDrive\Doc
+umentos\Desarrollos\Poliverso\FACT_
+ELECTRONICA\aurelius\backend\app\ma
+in.py", line 8, in <module>
+    from app.routers import auth, 
+emisor, facturas, usuarios, 
+certificados, eventos, 
+inutilizacion, auditoria
+  File "C:\Users\lpraf\OneDrive\Doc
+umentos\Desarrollos\Poliverso\FACT_
+ELECTRONICA\aurelius\backend\app\ro
+uters\__init__.py", line 1, in 
+<module>
+    from app.routers import auth, 
+certificados, emisor, eventos, 
+facturas, inutilizacion, usuarios, 
+auditoria
+  File "C:\Users\lpraf\OneDrive\Doc
+umentos\Desarrollos\Poliverso\FACT_
+ELECTRONICA\aurelius\backend\app\ro
+uters\auth.py", line 11, in 
+<module>
+    from app.security import (
+    ...<3 lines>...
+    )
+ImportError: cannot import name 
+'crear_salt' from 'app.security' (C
+:\Users\lpraf\OneDrive\Documentos\D
+esarrollos\Poliverso\FACT_ELECTRONI
+CA\aurelius\backend\app\security.py
+)

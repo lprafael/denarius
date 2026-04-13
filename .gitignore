@@ -1,0 +1,29 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/*.pyc
+__pycache__/
+
+# Databases
+backend/*.db
+backend/*.db-journal
+backend/*.sqlite3
+
+# Node / Frontend
+frontend/node_modules/
+frontend/dist/
+node_modules/
+
+# Environment and Secrets
+.env
+backend/.env
+frontend/.env
+**/.env.local
+**/certs/
+**/xsd/siRecepDE_v150.xsd
+
+# OS / IDE
+.DS_Store
+.vscode/
+.idea/
+*.log

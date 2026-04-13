@@ -1,0 +1,61 @@
+version: "3.9"
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: denarius_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: denarius
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-DenariusPass2026}
+      POSTGRES_DB: denarius
+    volumes:
+      - denarius_pg_data:/var/lib/postgresql/data
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U denarius -d denarius"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: denarius_backend
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DENARIUS_DATABASE_URL: "postgresql+psycopg://denarius:${DB_PASSWORD:-DenariusPass2026}@db:5432/denarius"
+      DENARIUS_JWT_SECRET: "${JWT_SECRET:-DenariusJWTSecret2026}"
+      DENARIUS_SIFEN_AMBIENTE: "${SIFEN_AMBIENTE:-test}"
+    ports:
+      - "8085:8000"
+    volumes:
+      - certs_data:/app/certs
+      - ./Manuales:/app/xsd:ro
+      - ./MANUAL_USUARIO.md:/app/MANUAL_USUARIO.md:ro
+      - ./MANUAL_TECNICO.md:/app/MANUAL_TECNICO.md:ro
+
+  # -------------------------------------------------------
+  # FRONTEND (Web App)
+  # -------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: denarius_frontend
+    ports:
+      - "8081:5173"
+    environment:
+      VITE_API_PROXY_TARGET: "http://backend:8000"
+      VITE_API_URL: "http://localhost:8085/api"
+    depends_on:
+      - backend
+
+volumes:
+  denarius_pg_data:
+  certs_data:

@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>KuDE - Ticket</title>
+    <style>
+        /* Estilos optimizados para impresoras térmicas de 80mm */
+        @page {
+            margin: 0;
+            size: 80mm auto;
+        }
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 11px;
+            width: 72mm; /* Dejando 4mm de margen a cada lado */
+            margin: 0 auto;
+            padding: 5mm 0;
+            background-color: #fff;
+            color: #000;
+            line-height: 1.2;
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .text-left { text-align: left; }
+        .bold { font-weight: bold; }
+        .borde-inferior { border-bottom: 1px dashed #000; padding-bottom: 2px; margin-bottom: 2px; }
+        .borde-superior { border-top: 1px dashed #000; padding-top: 2px; margin-top: 2px; }
+        
+        /* Contenedores */
+        .seccion {
+            margin-bottom: 5px;
+        }
+
+        /* Tabla de Ítems */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 10px;
+        }
+        th, td {
+            vertical-align: top;
+            padding: 1px 0;
+        }
+        
+        /* QR Code */
+        .qr-container {
+            text-align: center;
+            margin: 10px 0;
+        }
+        .qr-container img {
+            width: 45mm;
+            height: 45mm;
+        }
+
+        /* Letra más pequeña para el legal y CDC */
+        .legal {
+            font-size: 9px;
+            text-align: center;
+        }
+        .cdc {
+            word-wrap: break-word;
+            word-break: break-all;
+            font-size: 10px;
+            text-align: center;
+            letter-spacing: 1px;
+            margin: 5px 0;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. ENCABEZADO -->
+    <div class="seccion text-center borde-inferior">
+        <!-- Logo opcional -->
+        <!-- <img src="{{ logo_base64 }}" alt="Logo" style="max-height: 40px; margin-bottom: 5px;"> -->
+        <h2 style="font-size: 14px; margin: 0;">{{ emisor.razon_social }}</h2>
+        <div>RUC: {{ emisor.ruc_con_dv }}</div>
+        <div>{{ emisor.direccion }} - N° {{ emisor.num_casa }}</div>
+        <div>{{ emisor.d_des_ciu_emi }} - Paraguay</div>
+        <div>Tel: {{ emisor.telefono }}</div>
+        
+        <div class="borde-superior" style="padding-top: 4px;">
+            <div class="bold">FACTURA ELECTRÓNICA</div>
+            <div>Timbrado: {{ emisor.num_tim }}</div>
+            <div>Vigencia: Inicio {{ emisor.d_fe_ini_t }}</div>
+            <div class="bold" style="font-size: 12px; margin-top: 3px;">
+                Nro: {{ emisor.d_est }}-{{ emisor.d_pun_exp }}-{{ "{:07d}".format(factura.numero_documento) }}
+            </div>
+            <div>Fecha: {{ factura.d_fe_emi_de.strftime('%d/%m/%Y %H:%M:%S') }}</div>
+        </div>
+    </div>
+
+    <!-- DATOS DEL RECEPTOR -->
+    <div class="seccion borde-inferior">
+        <div><span class="bold">Cliente:</span> {{ factura.receptor_nombre }}</div>
+        <div><span class="bold">RUC/CI:</span> {{ factura.receptor_ruc }}-{{ factura.receptor_dv }}</div>
+        {% if factura.receptor_dir %}
+            <div><span class="bold">Dir:</span> {{ factura.receptor_dir }}</div>
+        {% endif %}
+    </div>
+
+    <!-- 2. DETALLE DE ÍTEMS -->
+    <div class="seccion">
+        <table>
+            <tr class="borde-inferior bold">
+                <td class="text-left" style="width: 50%;">Cant Descripción</td>
+                <td class="text-right" style="width: 20%;">Precio</td>
+                <td class="text-right" style="width: 30%;">Total</td>
+            </tr>
+            <!-- Iterar sobre los productos -->
+            {% for linea in lineas %}
+            <tr>
+                <td colspan="3">{{ linea.d_cod_int }} - {{ linea.d_des_pro_ser }}</td>
+            </tr>
+            <tr>
+                <td class="text-left">  {{ linea.d_cant_pro_ser }} {{ linea.d_des_uni_med }} (IVA {{ linea.d_tasa_iva }}%)</td>
+                <td class="text-right">{{ "{:,.0f}".format(linea.d_p_uni_pro_ser).replace(',', '.') }}</td>
+                <td class="text-right">{{ "{:,.0f}".format(linea.d_p_uni_pro_ser * linea.d_cant_pro_ser).replace(',', '.') }}</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <!-- 3. SUBTOTALES Y TOTALES -->
+    <div class="seccion borde-superior">
+        <table>
+            <tr>
+                <td class="text-left bold" style="font-size: 12px;">TOTAL A PAGAR:</td>
+                <td class="text-right bold" style="font-size: 12px;">Gs. {{ "{:,.0f}".format(factura.d_tot_gral_ope).replace(',', '.') }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <div class="seccion">
+        <div class="bold text-center" style="margin-top: 5px;">LIQUIDACIÓN DEL IVA</div>
+        <table style="margin-top: 2px;">
+            <tr>
+                <td class="text-center font-size: 10px;">(Aquí se desglosaría la liquidación de IVA 5% y 10% proveniente del totalizador)</td>
+            </tr>
+            <tr>
+                <td class="text-left bold">TOTAL IVA:</td>
+                <td class="text-right bold">{{ "{:,.0f}".format(factura.d_tot_iva).replace(',', '.') }}</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- 4. INFORMACIÓN SIFEN Y CDC -->
+    <div class="seccion borde-superior text-center" style="margin-top: 10px;">
+        <div class="bold" style="margin-bottom: 3px;">CÓDIGO DE CONTROL (CDC):</div>
+        <div class="cdc">{{ factura.cdc }}</div>
+        
+        <!-- 5. CÓDIGO QR -->
+        <div class="qr-container">
+            <!-- La imagen del QR debe ser inyectada en base64 desde el backend -->
+            <!-- src contendrá un string como `data:image/png;base64,...` -->
+            <img src="{{ qr_image_base64 }}" alt="Codigo QR">
+        </div>
+        
+        <div class="legal">
+            ESTE DOCUMENTO ES UNA REPRESENTACIÓN GRÁFICA DE UN DOCUMENTO ELECTRÓNICO (KuDE).
+        </div>
+        <div class="legal" style="margin-top: 5px;">
+            Consulte la validez de este Documento Electrónico con el número de CDC en la página web: <br>
+            <span class="bold">kuatia.set.gov.py/consultas</span>
+        </div>
+    </div>
+
+</body>
+</html>

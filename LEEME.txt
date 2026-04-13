@@ -1,0 +1,48 @@
+Denarius(by Aurelius) — facturación electrónica (Paraguay, SIFEN / e-Kuatia)
+========================================================================
+
+Requisitos
+----------
+- Python 3.11+ (probado con 3.14)
+- Node.js 18+ (solo para el frontend)
+
+Backend (API)
+-------------
+cd denarius\backend
+python -m venv .venv
+.\.venv\Scripts\pip install -r requirements.txt
+.\.venv\Scripts\python -m uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+
+Variables de entorno opcionales (prefijo AURELIUS_):
+- DATABASE_URL   (por defecto sqlite:///./denarius.db)
+- QR_BASE_URL    URL base del QR (pruebas: consultas-test)
+- CSC_SECRETO    secreto del CSC para cHashQR (¡cambiar en producción!)
+
+Endpoints útiles:
+- GET  /api/health
+- POST /api/auth/registro-empresa
+- POST /api/auth/login
+- GET  /api/auth/me
+- GET  /api/emisor
+- PUT  /api/emisor
+- GET  /api/facturas
+- POST /api/facturas
+- GET  /api/facturas/{id}/xml
+
+Frontend
+--------
+cd denarius\frontend
+npm install
+npm run dev
+Abrir http://127.0.0.1:5173 (el proxy envía /api al backend en 8000).
+
+Documentación en el proyecto
+----------------------------
+- Extructura xml_DE.xml  → estructura oficial de ejemplo (rDE, DE, gTimb, …)
+- Estructura_DE xsd.xml  → esquema alternativo con nombres distintos; NO coincide con el XML SIFEN real.
+
+Notas
+-----
+- Sistema preparado para multiempresa (catalogo + login por empresa).
+- El PDF "Especificación Técnica para Integración SIFEN e-Kuatia Paraguay.pdf" no está en esta carpeta; integrar firma XMLDSig (PKCS#12) y envío al SIFEN según ese manual y los WS de la DNIT/SET.
+- El bloque Signature y los DigestValue del QR deben sustituirse por los valores reales tras firmar el DE según el procedimiento oficial.

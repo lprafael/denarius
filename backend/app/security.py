@@ -126,7 +126,7 @@ def get_current_user(
 
 
 def get_admin_user(usr: Usuario = Depends(get_current_user)) -> Usuario:
-    if usr.rol not in ("admin", "superadmin"):
+    if usr.rol not in ("admin", "superadmin", "empresa_admin"):
         raise HTTPException(status_code=403, detail="Se requiere rol administrador")
     return usr
 

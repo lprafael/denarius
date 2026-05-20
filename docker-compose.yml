@@ -32,6 +32,8 @@ services:
       DENARIUS_DATABASE_URL: "postgresql+psycopg://denarius:${DB_PASSWORD:-DenariusPass2026}@db:5432/denarius"
       DENARIUS_JWT_SECRET: "${JWT_SECRET:-DenariusJWTSecret2026}"
       DENARIUS_SIFEN_AMBIENTE: "${SIFEN_AMBIENTE:-test}"
+      SMTP_USER: "${SMTP_USER:-denarius.electronico@gmail.com}"
+      SMTP_PASSWORD: "${SMTP_PASSWORD}"
     ports:
       - "8085:8000"
     volumes:

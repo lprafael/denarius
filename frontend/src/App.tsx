@@ -51,6 +51,7 @@ import {
   type FacturaCreate,
   type FacturaOut,
 } from "./api";
+import { PresupuestosView } from "./Presupuestos";
 
 
 export function App() {
@@ -121,7 +122,7 @@ export function App() {
     { producto_id: undefined, d_cod_int: "ART001", d_des_pro_ser: "Producto o servicio", d_cant_pro_ser: 1, d_p_uni_pro_ser: 0, d_tasa_iva: 10 },
   ]);
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config" | "presupuestos">("dashboard");
   const [productos, setProductos] = useState<any[]>([]);
   const [compras, setCompras] = useState<any[]>([]);
   const [usuariosEmpresa, setUsuariosEmpresa] = useState<any[]>([]);
@@ -605,6 +606,7 @@ export function App() {
           <button className={activeTab === "factura" ? "active" : ""} onClick={() => setActiveTab("factura")}>Emitir</button>
           <button className={activeTab === "inventario" ? "active" : ""} onClick={() => setActiveTab("inventario")}>Stock</button>
           <button className={activeTab === "compras" ? "active" : ""} onClick={() => setActiveTab("compras")}>Compras (IVA)</button>
+          <button className={activeTab === "presupuestos" ? "active" : ""} onClick={() => setActiveTab("presupuestos")}>Presupuestos</button>
           {isCompanyAdmin && (
             <button className={activeTab === "usuarios" ? "active" : ""} onClick={() => setActiveTab("usuarios")}>Usuarios</button>
           )}
@@ -767,6 +769,12 @@ export function App() {
                             </tbody>
                         </table>
                     </section>
+                </section>
+            )}
+
+            {activeTab === "presupuestos" && (
+                <section>
+                    <PresupuestosView empresaNombre={empresaNombre} />
                 </section>
             )}
 

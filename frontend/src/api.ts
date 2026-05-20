@@ -422,3 +422,80 @@ export async function updateUsuario(id: number, body: any): Promise<any> {
     if (!r.ok) throw new Error(await r.text());
     return r.json();
 }
+
+// Presupuestos
+export async function listPresupuestos(): Promise<any[]> {
+    const r = await fetch(`${API}/presupuestos`, { headers: { ...authHeaders() } });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+export async function createPresupuesto(body: any): Promise<any> {
+    const r = await fetch(`${API}/presupuestos/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+export async function enviarPresupuesto(id: number, body: { pdf_base64: string; destinatario: string; asunto: string; mensaje: string }): Promise<any> {
+    const r = await fetch(`${API}/presupuestos/${id}/enviar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+export async function autocompleteGrupos(): Promise<string[]> {
+    const r = await fetch(`${API}/presupuestos/autocomplete/grupos`, { headers: { ...authHeaders() } });
+    if (!r.ok) return [];
+    return r.json();
+}
+
+export async function autocompleteConceptos(): Promise<any[]> {
+    const r = await fetch(`${API}/presupuestos/autocomplete/conceptos`, { headers: { ...authHeaders() } });
+    if (!r.ok) return [];
+    return r.json();
+}
+
+export async function uploadLogo(file: File): Promise<{ logo_url: string }> {
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    // Create new headers object without Content-Type so browser sets it with boundary
+    const headers = { ...authHeaders() };
+    
+    const r = await fetch(`${API}/empresas/me/logo`, {
+        method: "POST",
+        headers: headers,
+        body: formData,
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+export async function getLogo(): Promise<{ logo_url: string }> {
+    const r = await fetch(`${API}/empresas/me/logo`, { headers: { ...authHeaders() } });
+    if (!r.ok) return { logo_url: "" };
+    return r.json();
+}
+
+export async function getPresupuestoConfig(): Promise<{ texto_pie_presupuesto: string }> {
+    const r = await fetch(`${API}/presupuestos/config`, { headers: { ...authHeaders() } });
+    if (!r.ok) return { texto_pie_presupuesto: "" };
+    return r.json();
+}
+
+export async function updatePresupuestoConfig(body: { texto_pie_presupuesto: string }): Promise<any> {
+    const r = await fetch(`${API}/presupuestos/config`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}

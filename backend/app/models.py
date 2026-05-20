@@ -33,6 +33,8 @@ class Empresa(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(255), unique=True)
     estado: Mapped[str] = mapped_column(String(16), default="pendiente")
+    logo_url: Mapped[str] = mapped_column(String(512), default="")
+    texto_pie_presupuesto: Mapped[str] = mapped_column(Text, default="Este presupuesto tiene validez por 15 días. Posteriormente podrá modificarse sin previo aviso.")
 
 
     plantilla_kude: Mapped[str] = mapped_column(String(255), default="kude_ticket.html")
@@ -418,3 +420,56 @@ class Webhook(Base):
 
     empresa: Mapped["Empresa"] = relationship(back_populates="webhooks")
 
+# ---------------------------------------------------------------------------
+# Presupuestos
+# ---------------------------------------------------------------------------
+class Presupuesto(Base):
+    __tablename__ = "presupuesto"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresa.id"), index=True)
+    numero: Mapped[int] = mapped_column(Integer)
+    fecha: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    validez_dias: Mapped[int] = mapped_column(Integer, default=15)
+    
+    # Snapshot of client data
+    cliente_nombre: Mapped[str] = mapped_column(String(255))
+    cliente_email: Mapped[str] = mapped_column(String(128), default="")
+    cliente_telefono: Mapped[str] = mapped_column(String(32), default="")
+    cliente_direccion: Mapped[str] = mapped_column(String(255), default="")
+    
+    total: Mapped[int] = mapped_column(Integer, default=0)
+    estado: Mapped[str] = mapped_column(String(32), default="borrador") # borrador, enviado, aceptado, rechazado
+    email_enviado: Mapped[bool] = mapped_column(Boolean, default=False)
+    texto_pie: Mapped[str] = mapped_column(Text, default="")
+    
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
+
+    grupos: Mapped[list["PresupuestoGrupo"]] = relationship(back_populates="presupuesto", cascade="all, delete-orphan")
+
+
+class PresupuestoGrupo(Base):
+    __tablename__ = "presupuesto_grupo"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    presupuesto_id: Mapped[int] = mapped_column(ForeignKey("presupuesto.id"))
+    nombre: Mapped[str] = mapped_column(String(255))
+    es_suma: Mapped[bool] = mapped_column(Boolean, default=True) # True = Suma, False = Resta (Descuento)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+
+    presupuesto: Mapped["Presupuesto"] = relationship(back_populates="grupos")
+    conceptos: Mapped[list["PresupuestoConcepto"]] = relationship(back_populates="grupo", cascade="all, delete-orphan")
+
+
+class PresupuestoConcepto(Base):
+    __tablename__ = "presupuesto_concepto"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    grupo_id: Mapped[int] = mapped_column(ForeignKey("presupuesto_grupo.id"))
+    descripcion: Mapped[str] = mapped_column(String(255))
+    cantidad: Mapped[float] = mapped_column(Float, default=1.0)
+    precio_unitario: Mapped[int] = mapped_column(Integer, default=0)
+    orden: Mapped[int] = mapped_column(Integer, default=0)
+
+    grupo: Mapped["PresupuestoGrupo"] = relationship(back_populates="conceptos")

@@ -27,6 +27,8 @@ class EmpresaOut(BaseModel):
     id: int
     nombre: str
     estado: str
+    logo_url: Optional[str] = ""
+    texto_pie_presupuesto: str
     created_at: datetime
     restriccion_equipos: bool
     max_equipos: int
@@ -424,3 +426,72 @@ class WebhookOut(BaseModel):
     activo: bool
     created_at: datetime
 
+
+# ---------------------------------------------------------------------------
+# Presupuestos
+# ---------------------------------------------------------------------------
+class PresupuestoConceptoCreate(BaseModel):
+    descripcion: str
+    cantidad: float = 1.0
+    precio_unitario: int = 0
+    orden: int = 0
+
+class PresupuestoGrupoCreate(BaseModel):
+    nombre: str
+    es_suma: bool = True
+    orden: int = 0
+    conceptos: list[PresupuestoConceptoCreate] = []
+
+class PresupuestoCreate(BaseModel):
+    numero: Optional[int] = None
+    fecha: Optional[datetime] = None
+    validez_dias: int = 15
+    cliente_nombre: str
+    cliente_email: str = ""
+    cliente_telefono: str = ""
+    cliente_direccion: str = ""
+    texto_pie: str = ""
+    grupos: list[PresupuestoGrupoCreate] = []
+
+class PresupuestoConceptoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    grupo_id: int
+    descripcion: str
+    cantidad: float
+    precio_unitario: int
+    orden: int
+
+class PresupuestoGrupoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    presupuesto_id: int
+    nombre: str
+    es_suma: bool
+    orden: int
+    conceptos: list[PresupuestoConceptoOut]
+
+class PresupuestoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    empresa_id: int
+    numero: int
+    fecha: datetime
+    validez_dias: int
+    cliente_nombre: str
+    cliente_email: str
+    cliente_telefono: str
+    cliente_direccion: str
+    total: int
+    estado: str
+    email_enviado: bool
+    texto_pie: str
+    created_at: datetime
+    updated_at: datetime
+    grupos: list[PresupuestoGrupoOut]
+
+class EmailEnviarIn(BaseModel):
+    pdf_base64: str
+    destinatario: str
+    asunto: str
+    mensaje: str

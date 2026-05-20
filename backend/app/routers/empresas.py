@@ -7,9 +7,11 @@ from app.database import get_db
 from app.models import Empresa, Usuario, Emisor, Factura
 
 from app.schemas import EmpresaOut
-from app.security import get_admin_user, hash_password, registrar_audit
+from app.security import get_admin_user, get_current_user, hash_password, registrar_audit
 from pydantic import BaseModel
-from fastapi import Request
+from fastapi import Request, UploadFile, File
+import os
+import shutil
 
 router = APIRouter(prefix="/api/empresas", tags=["empresas"])
 
@@ -235,3 +237,42 @@ def crear_superadmin(
     db.add(nuevo)
     db.commit()
     return {"ok": True, "email": email, "rol": "superadmin"}
+
+@router.post("/me/logo", response_model=dict)
+def upload_logo(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    """Sube el logo para la empresa del usuario actual"""
+    emp = db.query(Empresa).filter(Empresa.id == usuario.empresa_id).first()
+    if not emp:
+        raise HTTPException(404, "Empresa no encontrada")
+        
+    os.makedirs("uploads/logos", exist_ok=True)
+    file_path = f"uploads/logos/empresa_{emp.id}_{file.filename}"
+    
+    with open(file_path, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+        
+    # Guardar ruta (podría ser relativa para que el frontend la lea si se sirve como estático)
+    # Por ahora la guardamos como base64 o como ruta que luego expondremos.
+    # Dado que generar base64 es más portable para incrustar en PDFs y HTMLs locales sin conf de estáticos:
+    with open(file_path, "rb") as image_file:
+        import base64
+        encoded_string = base64.b64encode(image_file.read()).decode('utf-8')
+        
+    # Guardamos el base64 directamente en la DB para no lidiar con servir estáticos en este proyecto si no están configurados.
+    emp.logo_url = f"data:{file.content_type};base64,{encoded_string}"
+    db.commit()
+    
+    return {"ok": True, "logo_url": emp.logo_url}
+
+@router.get("/me/logo", response_model=dict)
+def get_logo(
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    emp = db.query(Empresa).filter(Empresa.id == usuario.empresa_id).first()
+    return {"logo_url": emp.logo_url if emp else ""}
+

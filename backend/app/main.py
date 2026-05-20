@@ -8,7 +8,7 @@ from app.database import Base, engine
 from app.routers import (
     auth, emisor, facturas, usuarios, certificados, eventos, 
     inutilizacion, auditoria, empresas, docs, clientes, equipos,
-    productos, compras, analitica
+    productos, compras, analitica, presupuestos
 )
 
 # Crear tablas al inicio
@@ -47,6 +47,7 @@ app.include_router(equipos.router)
 app.include_router(productos.router)
 app.include_router(compras.router)
 app.include_router(analitica.router)
+app.include_router(presupuestos.router)
 
 
 

@@ -647,11 +647,18 @@ export function App() {
                                     <td>{d.ruc}</td>
                                     <td><span className={`badge ${d.estado}`}>{d.estado.toUpperCase()}</span></td>
                                     <td>
-                                        <button className="linkish" onClick={() => { const full = empresas.find(e=>e.id===d.empresa_id); if(full) onEditClick(full); }}>✏️</button>
+                                        <button className="linkish" onClick={() => { const full = empresas.find(e => e.id===d.empresa_id); if(full) onEditClick(full); }}>✏️</button>
                                         {" | "}
                                         <button className="linkish" onClick={() => onToggleEmpresa(d.empresa_id)}>
                                             {d.estado === 'activo' ? '🚫' : '✅'}
                                         </button>
+                                        {" | "}
+                                        <button className="linkish" onClick={async () => {
+                                            if (window.confirm('¿Eliminar empresa?')) {
+                                                await deleteEmpresa(d.empresa_id);
+                                                await refresh();
+                                            }
+                                        }}>🗑️</button>
                                         {" | "}
                                         <button className="linkish" onClick={async () => {
                                             setAdminFacturaEmpresaId(d.empresa_id);

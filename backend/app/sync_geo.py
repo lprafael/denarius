@@ -1,4 +1,4 @@
-import psycopg2
+import psycopg
 import sqlite3
 import os
 from sqlalchemy import create_engine, text
@@ -13,12 +13,12 @@ SIGEL_DB = {
 }
 
 # Configuración Aurelius
-AURELIUS_URL = "postgresql+psycopg2://aurelius:AureliusPass2026@db:5432/aurelius"
+AURELIUS_URL = "postgresql+psycopg://aurelius:AureliusPass2026@db:5432/aurelius"
 
 def sync_geo_data():
     print("Conectando a SIGEL...")
     try:
-        sigel_conn = psycopg2.connect(**SIGEL_DB)
+        sigel_conn = psycopg.connect(**SIGEL_DB)
         sigel_cursor = sigel_conn.cursor()
         
         # 1. Traer Departamentos (según columnas detectadas: dpto, dpto_desc)

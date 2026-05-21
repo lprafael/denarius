@@ -333,6 +333,42 @@ class Cliente(Base):
     __table_args__ = (UniqueConstraint('empresa_id', 'ruc_con_dv', name='_cliente_empresa_ruc_uc'),)
 
 # ---------------------------------------------------------------------------
+# Geografía SIFEN (departamento, distrito, barrio)
+# ---------------------------------------------------------------------------
+class GeoDepartamento(Base):
+    __tablename__ = "geo_departamento"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(String(128), unique=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    distritos: Mapped[list["GeoDistrito"]] = relationship(back_populates="departamento", cascade="all, delete-orphan")
+
+class GeoDistrito(Base):
+    __tablename__ = "geo_distrito"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(String(128))
+    departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    departamento: Mapped["GeoDepartamento"] = relationship(back_populates="distritos")
+    barrios: Mapped[list["GeoBarrio"]] = relationship(back_populates="distrito", cascade="all, delete-orphan")
+
+class GeoBarrio(Base):
+    __tablename__ = "geo_barrio"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    nombre: Mapped[str] = mapped_column(String(128))
+    departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
+    distrito_id: Mapped[int] = mapped_column(ForeignKey("geo_distrito.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    departamento: Mapped["GeoDepartamento"] = relationship("GeoDepartamento", backref="barrios")
+    distrito: Mapped["GeoDistrito"] = relationship(back_populates="barrios")
+
+# ---------------------------------------------------------------------------
+# Equipo Autorizado
 # Equipo Autorizado
 # ---------------------------------------------------------------------------
 class EquipoAutorizado(Base):

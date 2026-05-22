@@ -54,33 +54,41 @@ def crear_presupuesto(
         estado="borrador"
     )
     
+    # Initialize total amount
     total_presupuesto = 0
 
-    for grupo_in in presupuesto_in.grupos:
-        nuevo_grupo = PresupuestoGrupo(
-            nombre=grupo_in.nombre,
-            es_suma=grupo_in.es_suma,
-            orden=grupo_in.orden
-        )
-        
-        total_grupo = 0
-        for concepto_in in grupo_in.conceptos:
-            nuevo_concepto = PresupuestoConcepto(
-                descripcion=concepto_in.descripcion,
-                cantidad=concepto_in.cantidad,
-                precio_unitario=concepto_in.precio_unitario,
-                orden=concepto_in.orden
+    # Retrieve the most recent previous presupuesto for this empresa
+    last_presupuesto = (
+        db.query(Presupuesto)
+        .filter(Presupuesto.empresa_id == current_user.empresa_id)
+        .order_by(Presupuesto.id.desc())
+        .first()
+    )
+
+    if last_presupuesto and last_presupuesto.grupos:
+        for grupo in last_presupuesto.grupos:
+            nuevo_grupo = PresupuestoGrupo(
+                nombre=grupo.nombre,
+                es_suma=grupo.es_suma,
+                orden=grupo.orden,
             )
-            nuevo_grupo.conceptos.append(nuevo_concepto)
-            total_grupo += (concepto_in.cantidad * concepto_in.precio_unitario)
-            
-        if grupo_in.es_suma:
-            total_presupuesto += total_grupo
-        else:
-            total_presupuesto -= total_grupo
-            
-        nuevo_presupuesto.grupos.append(nuevo_grupo)
-        
+            total_grupo = 0
+            for concepto in grupo.conceptos:
+                nuevo_concepto = PresupuestoConcepto(
+                    descripcion=concepto.descripcion,
+                    cantidad=concepto.cantidad,
+                    precio_unitario=concepto.precio_unitario,
+                    orden=concepto.orden,
+                )
+                nuevo_grupo.conceptos.append(nuevo_concepto)
+                total_grupo += concepto.cantidad * concepto.precio_unitario
+            if grupo.es_suma:
+                total_presupuesto += total_grupo
+            else:
+                total_presupuesto -= total_grupo
+            nuevo_presupuesto.grupos.append(nuevo_grupo)
+
+    # If there is no previous presupuesto, groups remain empty
     nuevo_presupuesto.total = total_presupuesto
     db.add(nuevo_presupuesto)
     db.commit()

@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # Google Auth
     google_client_id: str = "CAMBIAR_EN_PRODUCCION"
 
+    # SMTP (Emails)
+    smtp_user: str = "denarius.electronico@gmail.com"
+    smtp_password: str = ""
 
     # QR
     qr_base_url: str = "https://ekuatia.set.gov.py/consultas/qr"

@@ -50,6 +50,8 @@ import {
 
   type FacturaCreate,
   type FacturaOut,
+  updateAdminEmail,
+  resetAdminPassword
 } from "./api";
 import { PresupuestosView } from "./Presupuestos";
 
@@ -78,7 +80,8 @@ export function App() {
     ruc_con_dv: "", 
     plantilla_kude: "",
     restriccion_equipos: false,
-    max_equipos: 0
+    max_equipos: 0,
+    email_admin: ""
   });
 
   const [cscId, setCscId] = useState("");
@@ -481,8 +484,36 @@ export function App() {
     setEditFields({
       nombre: emp.nombre || "", razon_social: emp.razon_social || "", ruc_con_dv: emp.ruc || "",
       plantilla_kude: emp.plantilla_kude || "kude_ticket.html",
-      restriccion_equipos: !!emp.restriccion_equipos, max_equipos: emp.max_equipos || 0
+      restriccion_equipos: !!emp.restriccion_equipos, max_equipos: emp.max_equipos || 0,
+      email_admin: emp.email_admin || ""
     });
+  }
+
+  async function handleResetPassword() {
+    if (!editEmpresa) return;
+    try {
+      setLoading(true);
+      await resetAdminPassword(editEmpresa.id, editFields.email_admin);
+      alert("Email de reset enviado a: " + editFields.email_admin);
+    } catch(e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function onSaveEmailAdmin() {
+    if (!editEmpresa) return;
+    try {
+      setLoading(true);
+      await updateAdminEmail(editEmpresa.id, editFields.email_admin);
+      alert("Email actualizado exitosamente");
+      await refresh();
+    } catch(e) {
+      setErr(String(e));
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function onToggleEquipo(id: number, current: boolean) {
@@ -781,7 +812,7 @@ export function App() {
 
             {activeTab === "presupuestos" && (
                 <section>
-                    <PresupuestosView empresaNombre={empresaNombre} />
+                    <PresupuestosView empresaNombre={empresaNombre} onAddCliente={() => setShowClienteModal(true)} />
                 </section>
             )}
 
@@ -1124,7 +1155,8 @@ export function App() {
 
       {editEmpresa && (
         <div className="modal-overlay" onClick={() => setEditEmpresa(null)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: '500px', background: 'var(--panel)', padding: '2rem', borderRadius: '12px'}}>
+          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: '500px', background: 'var(--panel)', padding: '2rem', borderRadius: '12px', position: 'relative'}}>
+            <button type="button" onClick={() => setEditEmpresa(null)} style={{position: 'absolute', top: '1rem', right: '1rem', background: 'transparent', border: 'none', fontSize: '1.5rem', cursor: 'pointer', color: 'var(--text)'}}>✕</button>
             <h2>Editar Empresa #{editEmpresa.id}</h2>
             <form onSubmit={onSaveEdit} className="form" style={{marginTop: '1rem'}}>
               <label className="full">Nombre <input value={editFields.nombre} onChange={e => setEditFields({...editFields, nombre: e.target.value})} /></label>
@@ -1132,6 +1164,20 @@ export function App() {
               <label className="full">RUC <input value={editFields.ruc_con_dv} onChange={e => setEditFields({...editFields, ruc_con_dv: e.target.value})} /></label>
               <button type="submit" className="primary full" disabled={loading} style={{marginTop: '1rem'}}>Guardar Cambios</button>
             </form>
+
+            <hr style={{margin: '1.5rem 0', borderColor: 'var(--border)'}} />
+            <h3>Accesos de Administrador</h3>
+            <div className="form">
+              <label className="full">Email Admin
+                <div style={{display: 'flex', gap: '0.5rem', marginTop: '0.5rem'}}>
+                  <input style={{flex: 1}} value={editFields.email_admin} onChange={e => setEditFields({...editFields, email_admin: e.target.value})} />
+                  <button type="button" className="secondary" disabled={loading} onClick={onSaveEmailAdmin}>Actualizar Email</button>
+                </div>
+              </label>
+              <button type="button" className="highlight full" disabled={loading} onClick={handleResetPassword} style={{marginTop: '0.5rem'}}>
+                Reenviar contraseña al correo
+              </button>
+            </div>
           </div>
         </div>
       )}

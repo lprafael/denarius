@@ -10,13 +10,18 @@ import {
     getLogo, 
     uploadLogo,
     getPresupuestoConfig,
-    updatePresupuestoConfig
+    updatePresupuestoConfig,
+    getClienteByRuc,
+    upsertCliente,
+    restoreAccessToken
 } from "./api";
 
-export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
-    const [view, setView] = useState<"list" | "create">("list");
+
+    export function PresupuestosView({ empresaNombre, onAddCliente }: { empresaNombre: string; onAddCliente?: () => void }) {
+    const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [presupuestos, setPresupuestos] = useState<any[]>([]);
-    const [logoUrl, setLogoUrl] = useState<string>("");
+const [view, setView] = useState<"list" | "create">("list");
+const [logoUrl, setLogoUrl] = useState<string>("");
     
     // Auto-complete data
     const [sugGrupos, setSugGrupos] = useState<string[]>([]);
@@ -24,8 +29,13 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
 
     // Form state
     const [clienteNombre, setClienteNombre] = useState("");
-    const [clienteEmail, setClienteEmail] = useState("");
-    const [clienteTelefono, setClienteTelefono] = useState("");
+    const [clienteRuc, setClienteRuc] = useState("");
+  const [clienteEmail, setClienteEmail] = useState("");
+  const [clienteTelefono, setClienteTelefono] = useState("");
+  const [clienteDir, setClienteDir] = useState("");
+  const [clienteEncontrado, setClienteEncontrado] = useState<any>(null);
+  const [showClienteModal, setShowClienteModal] = useState(false);
+  const [loading, setLoading] = useState(false);
     const [numero, setNumero] = useState<number | "">("");
     const [validezDias, setValidezDias] = useState<number>(15);
     
@@ -42,8 +52,12 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
     const printRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
-        if (view === "list") loadData();
-        loadConfig();
+        const init = async () => {
+            await restoreAccessToken();
+            if (view === "list") await loadData();
+            await loadConfig();
+        };
+        init();
     }, [view]);
 
     async function loadData() {
@@ -102,26 +116,63 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
 
     async function generatePdfBase64(): Promise<string> {
         if (!printRef.current) return "";
-        const canvas = await html2canvas(printRef.current, { scale: 2 });
-        const imgData = canvas.toDataURL("image/png");
-        const pdf = new jsPDF("p", "mm", "a4");
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
-        
-        const pdfDataUri = pdf.output("datauristring");
-        return pdfDataUri.split(",")[1];
+        const hiddenElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".no-print"));
+        const originalDisplays = hiddenElements.map(el => el.style.display);
+        try {
+            hiddenElements.forEach(el => { el.style.display = "none"; });
+            const canvas = await html2canvas(printRef.current, { scale: 1.5, useCORS: true, logging: false, allowTaint: true });
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            const pdfDataUri = pdf.output("datauristring");
+            return pdfDataUri.split(",")[1];
+        } finally {
+            hiddenElements.forEach((el, index) => { el.style.display = originalDisplays[index]; });
+        }
     }
+
+    const onRucBlur = async (ruc: string) => {
+    if (!ruc) return;
+    try {
+        const existing = await getClienteByRuc(ruc);
+        if (existing) {
+            setClienteNombre(existing.razon_social || "");
+            setClienteEmail(existing.email || "");
+            setClienteTelefono(existing.telefono || "");
+            setClienteDir(existing.direccion || "");
+            setClienteEncontrado({ _is_new_sifen: false });
+        } else {
+            setClienteEncontrado({ _is_new_sifen: true });
+        }
+    } catch (e) {
+        console.error(e);
+    }
+};
 
     async function onSave(enviar: boolean) {
         try {
             if (!clienteNombre) return alert("Ingrese el nombre del cliente");
-            
+            // Validar cliente por RUC y crear si no existe
+            if (clienteRuc) {
+                const existing = await getClienteByRuc(clienteRuc);
+                if (!existing) {
+                    await upsertCliente({
+                        ruc_con_dv: clienteRuc,
+                        razon_social: clienteNombre,
+                        email: clienteEmail,
+                        telefono: clienteTelefono,
+                        direccion: "",
+                    });
+                }
+            }
             const payload = {
                 numero: numero || undefined,
                 cliente_nombre: clienteNombre,
                 cliente_email: clienteEmail,
                 cliente_telefono: clienteTelefono,
+                cliente_ruc: clienteRuc,
                 validez_dias: validezDias,
                 texto_pie: textoPie,
                 grupos: grupos.map((g, i) => ({
@@ -139,13 +190,17 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
 
             const saved = await createPresupuesto(payload);
             
+            // Retrieve admin email (placeholder, replace with actual admin email retrieval)
+            const adminEmail = "admin@example.com"; 
+
             if (enviar && clienteEmail) {
                 const base64 = await generatePdfBase64();
                 await enviarPresupuesto(saved.id, {
                     pdf_base64: base64,
                     destinatario: clienteEmail,
                     asunto: `Presupuesto Nº ${saved.numero} - ${empresaNombre}`,
-                    mensaje: `Estimado/a ${clienteNombre},\n\nAdjuntamos el presupuesto solicitado.\n\nSaludos,\n${empresaNombre}`
+                    mensaje: `Estimado/a ${clienteNombre},\n\nAdjuntamos el presupuesto solicitado.\n\nSaludos,\n${empresaNombre}`,
+                    cc: adminEmail // CC to admin
                 });
                 alert("Presupuesto guardado y enviado por correo!");
             } else {
@@ -164,15 +219,47 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
             <div className="card wide">
                 <div className="h-stack" style={{justifyContent: 'space-between', marginBottom:'1rem'}}>
                     <h2>📋 Presupuestos</h2>
-                    <button className="primary" onClick={() => {
-                        setTextoPie(textoPieDefault);
-                        setClienteNombre("");
-                        setClienteEmail("");
-                        setClienteTelefono("");
-                        setNumero("");
-                        setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
-                        setView("create");
-                    }}>+ Nuevo Presupuesto</button>
+<button className="primary" onClick={() => {
+    // Load the most recent presupuesto as a template
+    if (presupuestos && presupuestos.length > 0) {
+        const recent = presupuestos.reduce((prev, curr) => {
+            const prevDate = new Date(prev.fecha);
+            const currDate = new Date(curr.fecha);
+            return currDate > prevDate ? curr : prev;
+        }, presupuestos[0]);
+        // Populate fields from the recent presupuesto
+        setNumero(recent.numero ?? "");
+        setClienteNombre(recent.cliente_nombre ?? "");
+        setClienteEmail(recent.cliente_email ?? "");
+        setClienteTelefono(recent.cliente_telefono ?? "");
+        setClienteRuc(recent.cliente_ruc ?? "");
+        setValidezDias(recent.validez_dias ?? 15);
+        setTextoPie(recent.texto_pie ?? textoPieDefault);
+        setGrupos(
+            recent.grupos?.map((g: any) => ({
+                id: Date.now() + Math.random(),
+                nombre: g.nombre,
+                es_suma: g.es_suma,
+                conceptos: g.conceptos?.map((c: any) => ({
+                    id: Date.now() + Math.random(),
+                    descripcion: c.descripcion,
+                    cantidad: c.cantidad,
+                    precio_unitario: c.precio_unitario,
+                })) ?? []
+            })) ?? [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]
+        );
+    } else {
+        // No previous presupuestos, start with defaults
+        setTextoPie(textoPieDefault);
+        setClienteNombre("");
+        setClienteEmail("");
+        setClienteTelefono("");
+        setClienteRuc("");
+        setNumero("");
+        setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
+    }
+    setView("create");
+}}>+ Nuevo Presupuesto</button>
                 </div>
 
                 {/* Configuración rápida */}
@@ -288,6 +375,9 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                         <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteNombre} onChange={e=>setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
                     </div>
                     <div>
+                        <label className="full">RUC <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteRuc} onChange={e => setClienteRuc(e.target.value)} onBlur={e => onRucBlur(e.target.value)} placeholder="RUC del cliente" /></label>
+                    </div>
+                    <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Email</label>
                         <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteEmail} onChange={e=>setClienteEmail(e.target.value)} placeholder="email@cliente.com" />
                     </div>
@@ -303,6 +393,24 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                     </div>
                 </div>
 
+                {/* Cliente Status (NO PRINT) */}
+                {clienteEncontrado && !clienteEncontrado._is_new_sifen ? (
+                    <div className="alert success small h-stack no-print" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginBottom: '0.5rem'}}>
+                        <span>✅ Cliente Registrado</span>
+                        <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Actualizar Datos</button>
+                    </div>
+                ) : clienteEncontrado && clienteEncontrado._is_new_sifen ? (
+                    <div className="alert info small h-stack no-print" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginBottom: '0.5rem'}}>
+                        <span>ℹ️ RUC Válido - No registrado</span>
+                        <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Agregar a Base de Datos</button>
+                    </div>
+                ) : clienteRuc && clienteRuc.length >= 5 ? (
+                    <div className="alert warning small h-stack no-print" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginBottom: '0.5rem'}}>
+                        <span>⚠️ Cliente no encontrado</span>
+                        <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Agregar Manualmente</button>
+                    </div>
+                ) : null}
+
                 {/* Groups */}
                 {grupos.map((g, gIdx) => (
                     <div key={g.id} style={{ marginBottom: '20px' }}>
@@ -310,7 +418,7 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                             <select style={{marginRight:'10px', color:'#000', background:'transparent', border:'1px solid #ccc', borderRadius:'3px', padding:'2px 4px', fontWeight:'bold', fontSize:'12px'}} value={g.es_suma?"suma":"resta"} onChange={e=>{
                                 const ng = [...grupos]; ng[gIdx].es_suma = e.target.value==="suma"; setGrupos(ng);
                             }}>
-                                <option value="suma">(+) SUMA</option>
+                                <option value="suma">(+)</option>
                                 <option value="resta">(−) DESCUENTO</option>
                             </select>
                             
@@ -322,7 +430,7 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                                 onChange={e => { const ng = [...grupos]; ng[gIdx].nombre = e.target.value; setGrupos(ng); }}
                             />
                             
-                            {grupos.length > 1 && <button style={{background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:'16px', fontWeight:'bold'}} onClick={() => {
+                            {grupos.length > 1 && <button className="no-print" style={{background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:'16px', fontWeight:'bold'}} onClick={() => {
                                 setGrupos(grupos.filter((_, i) => i !== gIdx));
                             }}>✕</button>}
                         </div>
@@ -337,8 +445,7 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                                     <th style={{ width: '30px', borderBottom:'1px solid #ddd' }}></th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {g.conceptos.map((c: any, cIdx: number) => (
+                            <tbody>{/* */}{g.conceptos.map((c: any, cIdx: number) => (
                                     <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
                                             <input 
@@ -369,13 +476,13 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                                                 const ng = [...grupos];
                                                 ng[gIdx].conceptos = ng[gIdx].conceptos.filter((_:any, i:number) => i !== cIdx);
                                                 setGrupos(ng);
-                                            }}>✕</button>
+                                            }} className="no-print">✕</button>
                                         </td>
                                     </tr>
                                 ))}
                                 <tr>
                                     <td colSpan={5} style={{ padding: '4px 8px' }}>
-                                        <button style={{background:'none', border:'none', color:'#2563eb', cursor:'pointer', fontSize:'12px'}} onClick={() => {
+                                        <button className="no-print" style={{background:'none', border:'none', color:'#2563eb', cursor:'pointer', fontSize:'12px'}} onClick={() => {
                                             const ng = [...grupos];
                                             ng[gIdx].conceptos.push({ id: Date.now(), descripcion: "", cantidad: 1, precio_unitario: 0 });
                                             setGrupos(ng);
@@ -389,7 +496,7 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
 
                 <button style={{marginBottom:'20px', background:'none', border:'1px dashed #999', padding:'6px 14px', cursor:'pointer', color:'#555', borderRadius:'4px', fontSize:'13px'}} onClick={() => {
                     setGrupos([...grupos, { id: Date.now(), nombre: "", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "", cantidad: 1, precio_unitario: 0 }] }]);
-                }}>+ Añadir Grupo</button>
+                }} className="no-print">+ Añadir Grupo</button>
 
                 {/* Total */}
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
@@ -402,32 +509,39 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
                         </tbody>
                     </table>
                 </div>
+                <style>{`@media print { .no-print { display:none !important; } }`}</style>
 
-                {/* Texto Pie - EDITABLE */}
-                <div style={{ marginTop: '40px', paddingTop: '15px', borderTop: '1px solid #ddd' }}>
-                    <textarea 
-                        value={textoPie}
-                        onChange={e => setTextoPie(e.target.value)}
-                        rows={4}
-                        style={{
-                            width: '100%',
-                            border: '1px dashed #ccc',
-                            borderRadius: '4px',
-                            padding: '10px',
-                            fontSize: '12px',
-                            color: '#555',
-                            background: 'rgba(0,0,0,0.02)',
-                            resize: 'vertical',
-                            fontFamily: 'Arial, sans-serif',
-                            lineHeight: '1.5',
-                            outline: 'none'
-                        }}
-                        placeholder="Ej: Este presupuesto tiene validez por XX días. Posteriormente, la oferente podrá modificarlo sin previo aviso..."
-                    />
-                    <p style={{margin:'4px 0 0', fontSize:'10px', color:'#999', fontStyle:'italic'}}>
-                        ✏️ Este texto se guardará junto con el presupuesto y aparecerá en el PDF.
-                    </p>
+                {/* Texto Pie - EDITABLE (solo visible en PDF con saltos de línea) */}
+                <div style={{ marginTop: '40px', paddingTop: '15px', borderTop: '1px solid #ddd', whiteSpace: 'pre-wrap', wordWrap: 'break-word', fontSize: '12px', color: '#555', fontFamily: 'Arial, sans-serif', lineHeight: '1.5' }}>
+                    {textoPie || ""}
                 </div>
+            </div>
+
+            {/* Textarea para editar pie (FUERA del printRef, solo en frontend) */}
+            <div style={{marginTop: '1rem', padding:'1rem', backgroundColor:'#f9f9f9', borderRadius:'6px'}}>
+                <label style={{display:'block', fontWeight:'bold', marginBottom:'6px', fontSize:'13px'}}>Texto al Pie del Presupuesto</label>
+                <textarea 
+                    value={textoPie}
+                    onChange={e => setTextoPie(e.target.value)}
+                    rows={4}
+                    style={{
+                        width: '100%',
+                        border: '1px solid #ccc',
+                        borderRadius: '4px',
+                        padding: '10px',
+                        fontSize: '12px',
+                        color: '#333',
+                        background: '#fff',
+                        resize: 'vertical',
+                        fontFamily: 'Arial, sans-serif',
+                        lineHeight: '1.5',
+                        outline: 'none'
+                    }}
+                    placeholder="Ej: Este presupuesto tiene validez por XX días. Posteriormente, la oferente podrá modificarlo sin previo aviso..."
+                />
+                <p style={{margin:'4px 0 0', fontSize:'11px', color:'#666', fontStyle:'italic'}}>
+                    ✏️ Este texto se guardará junto con el presupuesto y aparecerá en el PDF. Los saltos de línea se respetan.
+                </p>
             </div>
 
             <datalist id="grupos-list">
@@ -436,6 +550,118 @@ export function PresupuestosView({ empresaNombre }: { empresaNombre: string }) {
             <datalist id="conceptos-list">
                 {sugConceptos.map(c => <option key={c.descripcion} value={c.descripcion} />)}
             </datalist>
+
+            {/* Modal para agregar/actualizar cliente */}
+            {showClienteModal && (
+                <div style={{
+                    position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex',
+                    alignItems: 'center', justifyContent: 'center', zIndex: 1000
+                }}>
+                    <div style={{
+                        backgroundColor: '#fff', color: '#000', padding: '2rem',
+                        borderRadius: '8px', maxWidth: '500px', width: '90%',
+                        boxShadow: '0 10px 40px rgba(0,0,0,0.3)'
+                    }}>
+                        <h3 style={{margin: '0 0 1.5rem 0', fontSize: '18px', fontWeight: 'bold'}}>
+                            {clienteEncontrado?.id ? 'Actualizar Cliente' : 'Agregar Cliente'}
+                        </h3>
+                        
+                        <div style={{display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem'}}>
+                            <div>
+                                <label style={{display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase'}}>RUC</label>
+                                <input 
+                                    type="text" 
+                                    value={clienteRuc} 
+                                    onChange={e => setClienteRuc(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px'}}
+                                    placeholder="Ej: 1234567-8"
+                                />
+                            </div>
+                            <div>
+                                <label style={{display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase'}}>Nombre/Razón Social</label>
+                                <input 
+                                    type="text" 
+                                    value={clienteNombre} 
+                                    onChange={e => setClienteNombre(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px'}}
+                                    placeholder="Nombre del cliente"
+                                />
+                            </div>
+                            <div style={{gridColumn: '1 / -1'}}>
+                                <label style={{display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase'}}>Email</label>
+                                <input 
+                                    type="email" 
+                                    value={clienteEmail} 
+                                    onChange={e => setClienteEmail(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px'}}
+                                    placeholder="email@cliente.com"
+                                />
+                            </div>
+                            <div>
+                                <label style={{display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase'}}>Teléfono</label>
+                                <input 
+                                    type="text" 
+                                    value={clienteTelefono} 
+                                    onChange={e => setClienteTelefono(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px'}}
+                                    placeholder="Teléfono"
+                                />
+                            </div>
+                            <div>
+                                <label style={{display: 'block', fontSize: '12px', fontWeight: 'bold', marginBottom: '4px', textTransform: 'uppercase'}}>Dirección</label>
+                                <input 
+                                    type="text" 
+                                    value={clienteDir} 
+                                    onChange={e => setClienteDir(e.target.value)}
+                                    style={{width: '100%', padding: '8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '14px'}}
+                                    placeholder="Dirección"
+                                />
+                            </div>
+                        </div>
+
+                        <div style={{display: 'flex', gap: '10px', justifyContent: 'flex-end'}}>
+                            <button 
+                                className="secondary" 
+                                onClick={() => setShowClienteModal(false)}
+                                style={{padding: '8px 16px', borderRadius: '4px'}}
+                            >
+                                Cancelar
+                            </button>
+                            <button 
+                                className="primary"
+                                onClick={async () => {
+                                    try {
+                                        if (!clienteNombre || !clienteRuc) {
+                                            alert('Por favor ingrese nombre y RUC del cliente');
+                                            return;
+                                        }
+                                        setLoading(true);
+                                        await upsertCliente({
+                                            ruc_con_dv: clienteRuc,
+                                            razon_social: clienteNombre,
+                                            email: clienteEmail,
+                                            telefono: clienteTelefono,
+                                            direccion: clienteDir,
+                                        });
+                                        alert('Cliente guardado exitosamente');
+                                        setShowClienteModal(false);
+                                        setClienteEncontrado({_is_new_sifen: false});
+                                    } catch (e: any) {
+                                        alert('Error al guardar cliente: ' + e.message);
+                                    } finally {
+                                        setLoading(false);
+                                    }
+                                }}
+                                style={{padding: '8px 16px', borderRadius: '4px'}}
+                                disabled={loading}
+                            >
+                                {loading ? 'Guardando...' : '💾 Guardar Cliente'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

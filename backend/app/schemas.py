@@ -22,16 +22,20 @@ class EmpresaCreate(BaseModel):
 
 
 
+class EmpresaEmailUpdate(BaseModel):
+    email_admin: EmailStr
+
+class PasswordResetRequest(BaseModel):
+    email_admin: EmailStr
 class EmpresaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     nombre: str
-    estado: str
-    logo_url: Optional[str] = ""
-    texto_pie_presupuesto: str
-    created_at: datetime
-    restriccion_equipos: bool
-    max_equipos: int
+    email_admin: Optional[str] = None
+    estado: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
 
 
 
@@ -442,6 +446,7 @@ class PresupuestoGrupoCreate(BaseModel):
     orden: int = 0
     conceptos: list[PresupuestoConceptoCreate] = []
 
+
 class PresupuestoCreate(BaseModel):
     numero: Optional[int] = None
     fecha: Optional[datetime] = None
@@ -450,6 +455,7 @@ class PresupuestoCreate(BaseModel):
     cliente_email: str = ""
     cliente_telefono: str = ""
     cliente_direccion: str = ""
+    cliente_ruc: Optional[str] = ""
     texto_pie: str = ""
     grupos: list[PresupuestoGrupoCreate] = []
 

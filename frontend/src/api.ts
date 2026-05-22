@@ -217,19 +217,31 @@ export async function login(email: string, password: string, device_id?: string)
   return out;
 }
 
+let googleLoginPromise: Promise<LoginOut> | null = null;
+
 export async function googleLogin(credential: string, device_id?: string): Promise<LoginOut> {
-    const r = await fetch(`${API}/auth/google-login`, {
+  if (googleLoginPromise) {
+    return googleLoginPromise;
+  }
+  try {
+    googleLoginPromise = (async () => {
+      const r = await fetch(`${API}/auth/google-login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ credential, device_id }),
-    });
-    if (!r.ok) {
+      });
+      if (!r.ok) {
         const t = await r.text();
         throw new Error(t);
-    }
-    const out: LoginOut = await r.json();
-    setAccessToken(out.access_token);
-    return out;
+      }
+      const out: LoginOut = await r.json();
+      setAccessToken(out.access_token);
+      return out;
+    })();
+    return await googleLoginPromise;
+  } finally {
+    googleLoginPromise = null;
+  }
 }
 
 
@@ -269,6 +281,26 @@ export async function updateEmpresa(id: number, body: any): Promise<any> {
     method: "PUT",
     headers: { "Content-Type": "application/json", ...authHeaders() },
     body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function updateAdminEmail(id: number, email_admin: string): Promise<any> {
+  const r = await fetch(`${API}/empresas/admin-email/${id}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ email_admin }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function resetAdminPassword(id: number, email_admin: string): Promise<any> {
+  const r = await fetch(`${API}/empresas/admin-email/${id}/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ email_admin }),
   });
   if (!r.ok) throw new Error(await r.text());
   return r.json();
@@ -424,11 +456,25 @@ export async function updateUsuario(id: number, body: any): Promise<any> {
 }
 
 // Presupuestos
+let listPresupuestosPromise: Promise<any[]> | null = null;
+
 export async function listPresupuestos(): Promise<any[]> {
-    const r = await fetch(`${API}/presupuestos`, { headers: { ...authHeaders() } });
-    if (!r.ok) throw new Error(await r.text());
-    return r.json();
+  if (listPresupuestosPromise) {
+    // If a request is already in flight, return the same promise
+    return listPresupuestosPromise;
+  }
+  try {
+    listPresupuestosPromise = (async () => {
+      const r = await fetch(`${API}/presupuestos/`, { headers: { ...authHeaders() } });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    })();
+    return await listPresupuestosPromise;
+  } finally {
+    listPresupuestosPromise = null;
+  }
 }
+
 
 export async function createPresupuesto(body: any): Promise<any> {
     const r = await fetch(`${API}/presupuestos/`, {
@@ -440,7 +486,8 @@ export async function createPresupuesto(body: any): Promise<any> {
     return r.json();
 }
 
-export async function enviarPresupuesto(id: number, body: { pdf_base64: string; destinatario: string; asunto: string; mensaje: string }): Promise<any> {
+
+export async function enviarPresupuesto(id: number, body: { pdf_base64: string; destinatario: string; asunto: string; mensaje: string; cc?: string }): Promise<any> {
     const r = await fetch(`${API}/presupuestos/${id}/enviar`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...authHeaders() },

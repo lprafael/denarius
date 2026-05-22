@@ -9,7 +9,7 @@ SIGEL_DB = {
     "port": 5434,
     "user": "postgres",
     "password": "admin", # Contraseña confirmada por el usuario
-    "database": "SIGEL"
+    "dbname": "SIGEL"
 }
 
 # Configuración Aurelius

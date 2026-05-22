@@ -33,7 +33,9 @@ class Empresa(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     nombre: Mapped[str] = mapped_column(String(255), unique=True)
     estado: Mapped[str] = mapped_column(String(16), default="pendiente")
-    logo_url: Mapped[str] = mapped_column(String(512), default="")
+    logo_url: Mapped[str] = mapped_column(Text, default="")
+    email_admin: Mapped[str] = mapped_column(String(255), nullable=True, unique=True)
+    password_admin: Mapped[str] = mapped_column(String(255), nullable=True)
     texto_pie_presupuesto: Mapped[str] = mapped_column(Text, default="Este presupuesto tiene validez por 15 días. Posteriormente podrá modificarse sin previo aviso.")
 
 
@@ -85,6 +87,22 @@ class Usuario(Base):
 
     empresa: Mapped["Empresa"] = relationship(back_populates="usuarios")
     equipos: Mapped[list["EquipoAutorizado"]] = relationship(back_populates="usuario", cascade="all, delete-orphan")
+
+
+# ---------------------------------------------------------------------------
+# Password Reset
+# ---------------------------------------------------------------------------
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresa.id"), index=True)
+    token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    expira_at: Mapped[datetime] = mapped_column(DateTime)
+    usado: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    empresa = relationship("Empresa")
 
 
 

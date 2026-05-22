@@ -14,6 +14,12 @@ from app.routers import (
 # Crear tablas al inicio
 Base.metadata.create_all(bind=engine)
 
+# Ensure logo_url column can store large data URLs
+from sqlalchemy import text
+with engine.begin() as conn:
+    conn.execute(text("ALTER TABLE empresa ALTER COLUMN logo_url TYPE TEXT"))
+
+
 app = FastAPI(
 
     title=settings.app_name,

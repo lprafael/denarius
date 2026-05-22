@@ -1,12 +1,12 @@
 from __future__ import annotations
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from sqlalchemy.orm import Session
 from typing import List
 from sqlalchemy import func
 from app.database import get_db
 from app.models import Empresa, Usuario, Emisor, Factura
 
-from app.schemas import EmpresaOut
+from app.schemas import EmpresaOut, EmpresaEmailUpdate, PasswordResetRequest
 from app.security import get_admin_user, get_current_user, hash_password, registrar_audit
 from pydantic import BaseModel
 from fastapi import Request, UploadFile, File
@@ -90,6 +90,7 @@ def listar_empresas(
             "plantilla_kude": getattr(emp, 'plantilla_kude', 'kude_ticket.html'),
             "restriccion_equipos": emp.restriccion_equipos,
             "max_equipos": emp.max_equipos,
+            "email_admin": emp.email_admin,
             "created_at": emp.created_at
 
         })
@@ -276,3 +277,63 @@ def get_logo(
     emp = db.query(Empresa).filter(Empresa.id == usuario.empresa_id).first()
     return {"logo_url": emp.logo_url if emp else ""}
 
+@router.put("/admin-email/{empresa_id}", response_model=dict)
+def update_admin_email(
+    empresa_id: int,
+    payload: EmpresaEmailUpdate,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_admin_user),
+):
+    """Actualiza el email del administrador de la empresa. Solo SuperAdmin."""
+    if usuario.rol != "superadmin":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    emp = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    emp.email_admin = payload.email_admin
+    db.commit()
+    registrar_audit(
+        db,
+        accion="update_admin_email",
+        empresa_id=empresa_id,
+        usuario_id=usuario.id,
+        entidad="empresa",
+        entidad_id=str(empresa_id),
+        detalle=f"Email admin actualizado a {payload.email_admin}",
+        ip="",
+    )
+    return {"ok": True, "email_admin": emp.email_admin}
+
+@router.post("/admin-email/{empresa_id}/reset-password", response_model=dict)
+def reset_admin_password(
+    empresa_id: int,
+    payload: PasswordResetRequest,
+    background: BackgroundTasks,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_admin_user),
+):
+    """Genera token de reset y envía email al admin. Solo SuperAdmin."""
+    if usuario.rol != "superadmin":
+        raise HTTPException(status_code=403, detail="Sin permisos")
+    emp = db.query(Empresa).filter(Empresa.id == empresa_id).first()
+    if not emp:
+        raise HTTPException(status_code=404, detail="Empresa no encontrada")
+    if payload.email_admin != emp.email_admin:
+        raise HTTPException(status_code=400, detail="El email no coincide con el registrado")
+    import uuid, datetime
+    from datetime import timedelta
+    token = str(uuid.uuid4())
+    # Guardar token en tabla PasswordReset
+    from app.models import PasswordReset
+    reset = PasswordReset(
+        empresa_id=empresa_id,
+        token=token,
+        created_at=datetime.datetime.utcnow(),
+        expira_at=datetime.datetime.utcnow() + timedelta(hours=24),
+    )
+    db.add(reset)
+    db.commit()
+    # Envío de email en background
+    from app.email_utils import send_password_reset
+    background.add_task(send_password_reset, email_to=emp.email_admin, token=token)
+    return {"ok": True, "msg": "Email de reset enviado"}

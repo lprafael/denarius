@@ -51,7 +51,7 @@ services:
       dockerfile: Dockerfile
     container_name: denarius_frontend
     ports:
-      - "8081:5173"
+      - "8083:5173"
     environment:
       VITE_API_PROXY_TARGET: "http://backend:8000"
       VITE_API_URL: "http://backend:8000/api"

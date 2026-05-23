@@ -524,6 +524,7 @@ class PresupuestoConcepto(Base):
     descripcion: Mapped[str] = mapped_column(String(255))
     cantidad: Mapped[float] = mapped_column(Float, default=1.0)
     precio_unitario: Mapped[int] = mapped_column(Integer, default=0)
+    tasa_iva: Mapped[int] = mapped_column(Integer, default=10)
     orden: Mapped[int] = mapped_column(Integer, default=0)
 
     grupo: Mapped["PresupuestoGrupo"] = relationship(back_populates="conceptos")

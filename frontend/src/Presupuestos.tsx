@@ -17,6 +17,50 @@ import {
     updatePresupuesto
 } from "./api";
 
+function numeroALetras(num: number): string {
+    const unidades = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
+    const decenas = ["", "DIEZ", "VEINTE", "TREINTA", "CUARENTA", "CINCUENTA", "SESENTA", "SETENTA", "OCHENTA", "NOVENTA"];
+    const especiales = ["ONCE", "DOCE", "TRECE", "CATORCE", "QUINCE", "DIECISEIS", "DIECISIETE", "DIECIOCHO", "DIECINUEVE"];
+    const centenas = ["", "CIENTO", "DOSCIENTOS", "TRESCIENTOS", "CUATROCIENTOS", "QUINIENTOS", "SEISCIENTOS", "SETECIENTOS", "OCHOCIENTOS", "NOVECIENTOS"];
+
+    if (num === 0) return "CERO";
+    if (num < 0) return "MENOS " + numeroALetras(Math.abs(num));
+
+    let str = "";
+    if (num >= 1000000) {
+        const millon = Math.floor(num / 1000000);
+        if (millon === 1) str += "UN MILLON ";
+        else str += numeroALetras(millon) + " MILLONES ";
+        num %= 1000000;
+    }
+    if (num >= 1000) {
+        const mil = Math.floor(num / 1000);
+        if (mil === 1) str += "MIL ";
+        else str += numeroALetras(mil) + " MIL ";
+        num %= 1000;
+    }
+    if (num >= 100) {
+        if (num === 100) { str += "CIEN "; num = 0; }
+        else { str += centenas[Math.floor(num / 100)] + " "; num %= 100; }
+    }
+    if (num >= 10 && num <= 19) {
+        if (num === 10) str += "DIEZ ";
+        else str += especiales[num - 11] + " ";
+        num = 0;
+    } else if (num >= 20) {
+        if (num === 20) { str += "VEINTE "; num = 0; }
+        else if (num < 30) { str += "VEINTI" + unidades[num - 20] + " "; num = 0; }
+        else {
+            str += decenas[Math.floor(num / 10)] + " ";
+            num %= 10;
+            if (num > 0) str += "Y ";
+        }
+    }
+    if (num > 0) {
+        str += unidades[num] + " ";
+    }
+    return str.trim();
+}
 
     export function PresupuestosView({ empresaNombre, onAddCliente }: { empresaNombre: string; onAddCliente?: () => void }) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
@@ -48,7 +92,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
     const [textoPieDefaultEdit, setTextoPieDefaultEdit] = useState("");
     
     const [grupos, setGrupos] = useState<any[]>([
-        { id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }
+        { id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }
     ]);
 
     const printRef = useRef<HTMLDivElement>(null);
@@ -103,17 +147,32 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         }
     }
 
-    function calcularTotal() {
-        let total = 0;
+    function calcularTotalesIva() {
+        let exentas = 0;
+        let iva5 = 0;
+        let iva10 = 0;
+        
         for (const g of grupos) {
-            let subt = 0;
             for (const c of g.conceptos) {
-                subt += (c.cantidad * c.precio_unitario);
+                const subt = c.cantidad * c.precio_unitario;
+                const sign = g.es_suma ? 1 : -1;
+                const val = subt * sign;
+                
+                if (c.tasa_iva === 10) iva10 += val;
+                else if (c.tasa_iva === 5) iva5 += val;
+                else exentas += val;
             }
-            if (g.es_suma) total += subt;
-            else total -= subt;
         }
-        return total;
+        
+        const total = exentas + iva5 + iva10;
+        const liq5 = Math.round(iva5 / 21);
+        const liq10 = Math.round(iva10 / 11);
+        
+        return { exentas, iva5, iva10, total, liq5, liq10, liqTotal: liq5 + liq10 };
+    }
+
+    function calcularTotal() {
+        return calcularTotalesIva().total;
     }
 
     async function generatePdfBase64(): Promise<string> {
@@ -208,6 +267,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                         descripcion: c.descripcion,
                         cantidad: Number(c.cantidad),
                         precio_unitario: Number(c.precio_unitario),
+                        tasa_iva: Number(c.tasa_iva ?? 10),
                         orden: j
                     }))
                 }))
@@ -272,8 +332,9 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                     descripcion: c.descripcion,
                     cantidad: c.cantidad,
                     precio_unitario: c.precio_unitario,
+                    tasa_iva: c.tasa_iva ?? 10,
                 })) ?? []
-            })) ?? [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]
+            })) ?? [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }]
         );
     } else {
         // No previous presupuestos, start with defaults
@@ -283,7 +344,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         setClienteTelefono("");
         setClienteRuc("");
         setNumero("");
-        setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
+        setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }]);
     }
     setEditingId(null);
     setView("create");
@@ -355,9 +416,10 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                                 id: Date.now() + Math.random(),
                                                 descripcion: c.descripcion,
                                                 cantidad: c.cantidad,
-                                                precio_unitario: c.precio_unitario
+                                                precio_unitario: c.precio_unitario,
+                                                tasa_iva: c.tasa_iva ?? 10
                                             }))
-                                        })) : [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
+                                        })) : [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }]);
                                         setEditingId(p.id);
                                         setView("create");
                                     }}>Ver/Editar</button>
@@ -471,13 +533,18 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                             <thead>
                                 <tr style={{ backgroundColor: '#f9fafb' }}>
                                     <th style={{ textAlign: 'left', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>Descripción</th>
-                                    <th style={{ width: '60px', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>Cant.</th>
-                                    <th style={{ width: '110px', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>P. Unitario</th>
-                                    <th style={{ width: '120px', padding: '6px 8px', textAlign: 'right', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>Subtotal</th>
-                                    <th style={{ width: '30px', borderBottom:'1px solid #ddd' }}></th>
+                                    <th style={{ width: '50px', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>Cant.</th>
+                                    <th style={{ width: '90px', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>P. Unitario</th>
+                                    <th className="no-print" style={{ width: '60px', padding: '6px 8px', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>IVA</th>
+                                    <th style={{ width: '80px', padding: '6px 8px', textAlign: 'right', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>Exentas</th>
+                                    <th style={{ width: '80px', padding: '6px 8px', textAlign: 'right', borderRight: '1px solid #ddd', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>5%</th>
+                                    <th style={{ width: '80px', padding: '6px 8px', textAlign: 'right', borderBottom:'1px solid #ddd', color:'#555', fontSize:'11px', textTransform:'uppercase' }}>10%</th>
+                                    <th style={{ width: '30px', borderBottom:'1px solid #ddd' }} className="no-print"></th>
                                 </tr>
                             </thead>
-                            <tbody>{/* */}{g.conceptos.map((c: any, cIdx: number) => (
+                            <tbody>{/* */}{g.conceptos.map((c: any, cIdx: number) => {
+                                const subt = c.cantidad * c.precio_unitario;
+                                return (
                                     <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
                                             <input 
@@ -500,23 +567,37 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
                                             <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'right', fontSize:'13px' }} value={c.precio_unitario} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].precio_unitario = Number(e.target.value); setGrupos(ng); }} />
                                         </td>
-                                        <td style={{ padding: '4px 8px', textAlign: 'right', color:'#000', fontWeight:'500', fontSize:'13px' }}>
-                                            {(c.cantidad * c.precio_unitario).toLocaleString()}
+                                        <td className="no-print" style={{ padding: '4px 8px', borderRight: '1px solid #ddd', textAlign:'center' }}>
+                                            <select style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'12px', textAlign:'center' }} value={c.tasa_iva ?? 10} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].tasa_iva = Number(e.target.value); setGrupos(ng); }}>
+                                                <option value={10}>10%</option>
+                                                <option value={5}>5%</option>
+                                                <option value={0}>Exento</option>
+                                            </select>
                                         </td>
-                                        <td style={{ textAlign: 'center' }}>
+                                        <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd', textAlign: 'right', color:'#000', fontWeight:'500', fontSize:'13px' }}>
+                                            {c.tasa_iva === 0 ? subt.toLocaleString() : ""}
+                                        </td>
+                                        <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd', textAlign: 'right', color:'#000', fontWeight:'500', fontSize:'13px' }}>
+                                            {c.tasa_iva === 5 ? subt.toLocaleString() : ""}
+                                        </td>
+                                        <td style={{ padding: '4px 8px', textAlign: 'right', color:'#000', fontWeight:'500', fontSize:'13px' }}>
+                                            {c.tasa_iva === 10 ? subt.toLocaleString() : ""}
+                                        </td>
+                                        <td style={{ textAlign: 'center' }} className="no-print">
                                             <button style={{background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:'13px'}} onClick={() => {
                                                 const ng = [...grupos];
                                                 ng[gIdx].conceptos = ng[gIdx].conceptos.filter((_:any, i:number) => i !== cIdx);
                                                 setGrupos(ng);
-                                            }} className="no-print">✕</button>
+                                            }}>✕</button>
                                         </td>
                                     </tr>
-                                ))}
+                                );
+                            })}
                                 <tr>
                                     <td colSpan={5} style={{ padding: '4px 8px' }}>
                                         <button className="no-print" style={{background:'none', border:'none', color:'#2563eb', cursor:'pointer', fontSize:'12px'}} onClick={() => {
                                             const ng = [...grupos];
-                                            ng[gIdx].conceptos.push({ id: Date.now(), descripcion: "", cantidad: 1, precio_unitario: 0 });
+                                            ng[gIdx].conceptos.push({ id: Date.now(), descripcion: "", cantidad: 1, precio_unitario: 0, tasa_iva: 10 });
                                             setGrupos(ng);
                                         }}>+ Añadir Concepto</button>
                                     </td>
@@ -527,16 +608,38 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 ))}
 
                 <button style={{marginBottom:'20px', background:'none', border:'1px dashed #999', padding:'6px 14px', cursor:'pointer', color:'#555', borderRadius:'4px', fontSize:'13px'}} onClick={() => {
-                    setGrupos([...grupos, { id: Date.now(), nombre: "", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "", cantidad: 1, precio_unitario: 0 }] }]);
+                    setGrupos([...grupos, { id: Date.now(), nombre: "", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }]);
                 }} className="no-print">+ Añadir Grupo</button>
 
                 {/* Total */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '20px' }}>
-                    <table style={{ width: '300px', borderCollapse: 'collapse', border: '2px solid #1a1a2e', borderRadius:'4px' }}>
+                <div style={{ marginTop: '20px' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', border: '1px solid #1a1a2e', borderRadius:'4px' }}>
                         <tbody>
+                            <tr style={{borderBottom:'1px solid #ccc'}}>
+                                <td style={{ padding: '8px 14px', fontWeight: 'bold', fontSize:'12px', borderRight:'1px solid #ccc' }}>SUB-TOTALES</td>
+                                <td style={{ padding: '8px 8px', textAlign: 'right', fontSize:'13px', borderRight:'1px solid #ccc', width:'80px' }}>{calcularTotalesIva().exentas.toLocaleString()}</td>
+                                <td style={{ padding: '8px 8px', textAlign: 'right', fontSize:'13px', borderRight:'1px solid #ccc', width:'80px' }}>{calcularTotalesIva().iva5.toLocaleString()}</td>
+                                <td style={{ padding: '8px 8px', textAlign: 'right', fontSize:'13px', width:'80px', borderRight:'1px solid #ccc' }}>{calcularTotalesIva().iva10.toLocaleString()}</td>
+                                <td style={{ width: '30px' }} className="no-print"></td>
+                            </tr>
+                            <tr style={{borderBottom:'1px solid #ccc'}}>
+                                <td colSpan={3} style={{ padding: '8px 14px', fontWeight: 'bold', fontSize:'12px', borderRight:'1px solid #ccc' }}>TOTAL</td>
+                                <td style={{ padding: '8px 8px', textAlign: 'right', fontWeight: 'bold', fontSize:'13px', borderRight:'1px solid #ccc' }}>{calcularTotal().toLocaleString()}</td>
+                                <td className="no-print"></td>
+                            </tr>
+                            <tr style={{borderBottom:'1px solid #ccc'}}>
+                                <td colSpan={5} style={{ padding: '8px 14px', fontSize:'12px' }}>
+                                    <div style={{display:'flex', justifyContent:'space-between', paddingRight: '40px'}}>
+                                        <span>LIQUIDACIÓN DEL IVA (5%): {calcularTotalesIva().liq5.toLocaleString()}</span>
+                                        <span>(10%): {calcularTotalesIva().liq10.toLocaleString()}</span>
+                                        <span style={{fontWeight:'bold'}}>TOTAL IVA: {calcularTotalesIva().liqTotal.toLocaleString()}</span>
+                                    </div>
+                                </td>
+                            </tr>
                             <tr style={{backgroundColor:'#1a1a2e'}}>
-                                <td style={{ padding: '10px 14px', fontWeight: 'bold', color:'#fff', fontSize:'14px' }}>TOTAL A PAGAR</td>
-                                <td style={{ padding: '10px 14px', textAlign: 'right', fontWeight: 'bold', color:'#fff', fontSize:'16px' }}>{calcularTotal().toLocaleString()}</td>
+                                <td colSpan={3} style={{ padding: '10px 14px', fontWeight: 'bold', color:'#fff', fontSize:'12px', textTransform:'uppercase' }}>TOTAL A PAGAR: GUARANIES {numeroALetras(calcularTotal())}</td>
+                                <td style={{ padding: '10px 8px', textAlign: 'right', fontWeight: 'bold', color:'#fff', fontSize:'15px', borderRight:'1px solid #ccc' }}>{calcularTotal().toLocaleString()}</td>
+                                <td className="no-print"></td>
                             </tr>
                         </tbody>
                     </table>

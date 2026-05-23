@@ -438,6 +438,7 @@ class PresupuestoConceptoCreate(BaseModel):
     descripcion: str
     cantidad: float = 1.0
     precio_unitario: int = 0
+    tasa_iva: int = 10
     orden: int = 0
 
 class PresupuestoGrupoCreate(BaseModel):
@@ -466,6 +467,7 @@ class PresupuestoConceptoOut(BaseModel):
     descripcion: str
     cantidad: float
     precio_unitario: int
+    tasa_iva: int
     orden: int
 
 class PresupuestoGrupoOut(BaseModel):

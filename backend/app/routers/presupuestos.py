@@ -70,6 +70,7 @@ def crear_presupuesto(
                     descripcion=concepto_in.descripcion,
                     cantidad=concepto_in.cantidad,
                     precio_unitario=concepto_in.precio_unitario,
+                    tasa_iva=concepto_in.tasa_iva,
                     orden=concepto_in.orden,
                 )
                 nuevo_grupo.conceptos.append(nuevo_concepto)
@@ -131,6 +132,7 @@ def update_presupuesto(
                     descripcion=concepto_in.descripcion,
                     cantidad=concepto_in.cantidad,
                     precio_unitario=concepto_in.precio_unitario,
+                    tasa_iva=concepto_in.tasa_iva,
                     orden=concepto_in.orden,
                 )
                 nuevo_grupo.conceptos.append(nuevo_concepto)

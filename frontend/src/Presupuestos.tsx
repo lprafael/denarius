@@ -135,6 +135,29 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         }
     }
 
+    async function downloadPdf() {
+        if (!printRef.current) return;
+        setIsGeneratingPdf(true);
+        const hiddenElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".no-print"));
+        const originalDisplays = hiddenElements.map(el => el.style.display);
+        try {
+            hiddenElements.forEach(el => { el.style.display = "none"; });
+            const canvas = await html2canvas(printRef.current, { scale: 1.5, useCORS: true, logging: false, allowTaint: true });
+            const imgData = canvas.toDataURL("image/png");
+            const pdf = new jsPDF("p", "mm", "a4");
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+            pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+            pdf.save(`Presupuesto_${numero || 'Nuevo'}.pdf`);
+        } catch(e) {
+            console.error("Error generating PDF:", e);
+            alert("Hubo un error al generar el PDF.");
+        } finally {
+            hiddenElements.forEach((el, index) => { el.style.display = originalDisplays[index]; });
+            setIsGeneratingPdf(false);
+        }
+    }
+
     const onRucBlur = async (ruc: string) => {
     if (!ruc) return;
     try {
@@ -352,6 +375,9 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         <div className="card wide" style={{ backgroundColor: '#fff', color: '#000' }}>
             <div className="h-stack" style={{justifyContent: 'flex-end', marginBottom:'1rem', gap:'10px'}}>
                 <button className="secondary" onClick={() => setView("list")}>← Cancelar</button>
+                <button className="secondary" style={{borderColor:'#4b5563', color:'#4b5563'}} onClick={downloadPdf} disabled={isGeneratingPdf}>
+                    {isGeneratingPdf ? "Generando..." : "📥 Descargar"}
+                </button>
                 <button className="primary" style={{backgroundColor:'#2563eb', color:'#fff'}} onClick={() => onSave(false)}>{editingId ? "💾 Guardar Cambios" : "💾 Solo Guardar"}</button>
                 <button className="primary" style={{backgroundColor:'#059669', color:'#fff'}} onClick={() => onSave(true)}>📧 Guardar y Enviar</button>
             </div>

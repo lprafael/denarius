@@ -486,6 +486,16 @@ export async function createPresupuesto(body: any): Promise<any> {
     return r.json();
 }
 
+export async function updatePresupuesto(id: number, body: any): Promise<any> {
+    const r = await fetch(`${API}/presupuestos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(body),
+    });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
 
 export async function enviarPresupuesto(id: number, body: { pdf_base64: string; destinatario: string; asunto: string; mensaje: string; cc?: string }): Promise<any> {
     const r = await fetch(`${API}/presupuestos/${id}/enviar`, {

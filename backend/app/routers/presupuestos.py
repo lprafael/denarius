@@ -57,44 +57,95 @@ def crear_presupuesto(
     # Initialize total amount
     total_presupuesto = 0
 
-    # Retrieve the most recent previous presupuesto for this empresa
-    last_presupuesto = (
-        db.query(Presupuesto)
-        .filter(Presupuesto.empresa_id == current_user.empresa_id)
-        .order_by(Presupuesto.id.desc())
-        .first()
-    )
-
-    if last_presupuesto and last_presupuesto.grupos:
-        for grupo in last_presupuesto.grupos:
+    if presupuesto_in.grupos:
+        for grupo_in in presupuesto_in.grupos:
             nuevo_grupo = PresupuestoGrupo(
-                nombre=grupo.nombre,
-                es_suma=grupo.es_suma,
-                orden=grupo.orden,
+                nombre=grupo_in.nombre,
+                es_suma=grupo_in.es_suma,
+                orden=grupo_in.orden,
             )
             total_grupo = 0
-            for concepto in grupo.conceptos:
+            for concepto_in in grupo_in.conceptos:
                 nuevo_concepto = PresupuestoConcepto(
-                    descripcion=concepto.descripcion,
-                    cantidad=concepto.cantidad,
-                    precio_unitario=concepto.precio_unitario,
-                    orden=concepto.orden,
+                    descripcion=concepto_in.descripcion,
+                    cantidad=concepto_in.cantidad,
+                    precio_unitario=concepto_in.precio_unitario,
+                    orden=concepto_in.orden,
                 )
                 nuevo_grupo.conceptos.append(nuevo_concepto)
-                total_grupo += concepto.cantidad * concepto.precio_unitario
-            if grupo.es_suma:
+                total_grupo += concepto_in.cantidad * concepto_in.precio_unitario
+            if grupo_in.es_suma:
                 total_presupuesto += total_grupo
             else:
                 total_presupuesto -= total_grupo
             nuevo_presupuesto.grupos.append(nuevo_grupo)
 
-    # If there is no previous presupuesto, groups remain empty
     nuevo_presupuesto.total = total_presupuesto
     db.add(nuevo_presupuesto)
     db.commit()
     db.refresh(nuevo_presupuesto)
     
     return nuevo_presupuesto
+
+@router.put("/{id}", response_model=PresupuestoOut)
+def update_presupuesto(
+    id: int,
+    presupuesto_in: PresupuestoCreate,
+    db: Session = Depends(get_db),
+    current_user: Usuario = Depends(get_current_user)
+):
+    presupuesto = db.query(Presupuesto).filter(
+        Presupuesto.id == id,
+        Presupuesto.empresa_id == current_user.empresa_id
+    ).first()
+
+    if not presupuesto:
+        raise HTTPException(status_code=404, detail="Presupuesto no encontrado")
+
+    presupuesto.numero = presupuesto_in.numero or presupuesto.numero
+    if presupuesto_in.fecha:
+        presupuesto.fecha = presupuesto_in.fecha
+    presupuesto.validez_dias = presupuesto_in.validez_dias
+    presupuesto.cliente_nombre = presupuesto_in.cliente_nombre
+    presupuesto.cliente_email = presupuesto_in.cliente_email
+    presupuesto.cliente_telefono = presupuesto_in.cliente_telefono
+    presupuesto.cliente_direccion = presupuesto_in.cliente_direccion
+    presupuesto.texto_pie = presupuesto_in.texto_pie
+
+    # Remove old groups and concepts safely through ORM
+    presupuesto.grupos.clear()
+    db.commit()
+
+    total_presupuesto = 0
+    if presupuesto_in.grupos:
+        for grupo_in in presupuesto_in.grupos:
+            nuevo_grupo = PresupuestoGrupo(
+                presupuesto_id=id,
+                nombre=grupo_in.nombre,
+                es_suma=grupo_in.es_suma,
+                orden=grupo_in.orden,
+            )
+            total_grupo = 0
+            for concepto_in in grupo_in.conceptos:
+                nuevo_concepto = PresupuestoConcepto(
+                    descripcion=concepto_in.descripcion,
+                    cantidad=concepto_in.cantidad,
+                    precio_unitario=concepto_in.precio_unitario,
+                    orden=concepto_in.orden,
+                )
+                nuevo_grupo.conceptos.append(nuevo_concepto)
+                total_grupo += concepto_in.cantidad * concepto_in.precio_unitario
+            if grupo_in.es_suma:
+                total_presupuesto += total_grupo
+            else:
+                total_presupuesto -= total_grupo
+            presupuesto.grupos.append(nuevo_grupo)
+
+    presupuesto.total = total_presupuesto
+    db.commit()
+    db.refresh(presupuesto)
+
+    return presupuesto
 
 @router.get("/config")
 def get_presupuesto_config(

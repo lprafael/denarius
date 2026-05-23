@@ -13,7 +13,8 @@ import {
     updatePresupuestoConfig,
     getClienteByRuc,
     upsertCliente,
-    restoreAccessToken
+    restoreAccessToken,
+    updatePresupuesto
 } from "./api";
 
 
@@ -21,6 +22,7 @@ import {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [presupuestos, setPresupuestos] = useState<any[]>([]);
 const [view, setView] = useState<"list" | "create">("list");
+const [editingId, setEditingId] = useState<number | null>(null);
 const [logoUrl, setLogoUrl] = useState<string>("");
     
     // Auto-complete data
@@ -188,7 +190,9 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 }))
             };
 
-            const saved = await createPresupuesto(payload);
+            const saved = editingId 
+                ? await updatePresupuesto(editingId, payload) 
+                : await createPresupuesto(payload);
             
             // Retrieve admin email (placeholder, replace with actual admin email retrieval)
             const adminEmail = "admin@example.com"; 
@@ -227,12 +231,12 @@ const [logoUrl, setLogoUrl] = useState<string>("");
             const currDate = new Date(curr.fecha);
             return currDate > prevDate ? curr : prev;
         }, presupuestos[0]);
-        // Populate fields from the recent presupuesto
-        setNumero(recent.numero ?? "");
-        setClienteNombre(recent.cliente_nombre ?? "");
-        setClienteEmail(recent.cliente_email ?? "");
-        setClienteTelefono(recent.cliente_telefono ?? "");
-        setClienteRuc(recent.cliente_ruc ?? "");
+        // Populate fields from the recent presupuesto for groups and template only
+        setNumero(""); // Reset the number so it auto-generates
+        setClienteNombre("");
+        setClienteEmail("");
+        setClienteTelefono("");
+        setClienteRuc("");
         setValidezDias(recent.validez_dias ?? 15);
         setTextoPie(recent.texto_pie ?? textoPieDefault);
         setGrupos(
@@ -258,6 +262,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         setNumero("");
         setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
     }
+    setEditingId(null);
     setView("create");
 }}>+ Nuevo Presupuesto</button>
                 </div>
@@ -330,6 +335,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                                 precio_unitario: c.precio_unitario
                                             }))
                                         })) : [{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now()+1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0 }] }]);
+                                        setEditingId(p.id);
                                         setView("create");
                                     }}>Ver/Editar</button>
                                 </td>
@@ -346,7 +352,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         <div className="card wide" style={{ backgroundColor: '#fff', color: '#000' }}>
             <div className="h-stack" style={{justifyContent: 'flex-end', marginBottom:'1rem', gap:'10px'}}>
                 <button className="secondary" onClick={() => setView("list")}>← Cancelar</button>
-                <button className="primary" style={{backgroundColor:'#2563eb', color:'#fff'}} onClick={() => onSave(false)}>💾 Solo Guardar</button>
+                <button className="primary" style={{backgroundColor:'#2563eb', color:'#fff'}} onClick={() => onSave(false)}>{editingId ? "💾 Guardar Cambios" : "💾 Solo Guardar"}</button>
                 <button className="primary" style={{backgroundColor:'#059669', color:'#fff'}} onClick={() => onSave(true)}>📧 Guardar y Enviar</button>
             </div>
 

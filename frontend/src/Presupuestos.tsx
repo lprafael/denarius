@@ -178,9 +178,17 @@ const [logoUrl, setLogoUrl] = useState<string>("");
     async function generatePdfBase64(): Promise<string> {
         if (!printRef.current) return "";
         const hiddenElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".no-print"));
+        const printOnlyElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".print-only"));
+        const printHideElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".print-hide"));
+        
         const originalDisplays = hiddenElements.map(el => el.style.display);
+        const originalPrintOnlyDisplays = printOnlyElements.map(el => el.style.display);
+        const originalPrintHideDisplays = printHideElements.map(el => el.style.display);
+        
         try {
             hiddenElements.forEach(el => { el.style.display = "none"; });
+            printHideElements.forEach(el => { el.style.display = "none"; });
+            printOnlyElements.forEach(el => { el.style.display = "inline-block"; });
             const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, logging: false, allowTaint: true });
             const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF("p", "mm", "a4");
@@ -191,6 +199,8 @@ const [logoUrl, setLogoUrl] = useState<string>("");
             return pdfDataUri.split(",")[1];
         } finally {
             hiddenElements.forEach((el, index) => { el.style.display = originalDisplays[index]; });
+            printHideElements.forEach((el, index) => { el.style.display = originalPrintHideDisplays[index]; });
+            printOnlyElements.forEach((el, index) => { el.style.display = originalPrintOnlyDisplays[index]; });
         }
     }
 
@@ -198,9 +208,17 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         if (!printRef.current) return;
         setIsGeneratingPdf(true);
         const hiddenElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".no-print"));
+        const printOnlyElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".print-only"));
+        const printHideElements = Array.from(printRef.current.querySelectorAll<HTMLElement>(".print-hide"));
+        
         const originalDisplays = hiddenElements.map(el => el.style.display);
+        const originalPrintOnlyDisplays = printOnlyElements.map(el => el.style.display);
+        const originalPrintHideDisplays = printHideElements.map(el => el.style.display);
+        
         try {
             hiddenElements.forEach(el => { el.style.display = "none"; });
+            printHideElements.forEach(el => { el.style.display = "none"; });
+            printOnlyElements.forEach(el => { el.style.display = "inline-block"; });
             const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, logging: false, allowTaint: true });
             const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF("p", "mm", "a4");
@@ -213,6 +231,8 @@ const [logoUrl, setLogoUrl] = useState<string>("");
             alert("Hubo un error al generar el PDF.");
         } finally {
             hiddenElements.forEach((el, index) => { el.style.display = originalDisplays[index]; });
+            printHideElements.forEach((el, index) => { el.style.display = originalPrintHideDisplays[index]; });
+            printOnlyElements.forEach((el, index) => { el.style.display = originalPrintOnlyDisplays[index]; });
             setIsGeneratingPdf(false);
         }
     }
@@ -456,7 +476,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                         <h1 style={{ margin: 0, fontSize: '26px', color: '#1a1a2e', letterSpacing: '2px' }}>PRESUPUESTO</h1>
                         <h2 style={{ margin: '5px 0', fontSize: '14px', color: '#555', fontWeight: 'normal' }}>{empresaNombre}</h2>
                         <div style={{marginTop:'8px', fontSize:'13px', color:'#333'}}>
-                            Nº: <input type="number" style={{width:'80px', border:'none', borderBottom:'1px solid #999', outline:'none', background:'transparent', color:'#000', textAlign:'center', fontWeight:'bold'}} value={numero} onChange={e=>setNumero(e.target.value?Number(e.target.value):"")} placeholder="Auto" />
+                            Nº: <span className="print-only" style={{display:'none', fontWeight:'bold', borderBottom:'1px solid #999', width:'80px', textAlign:'center'}}>{numero || '\u00A0'}</span><input className="print-hide" type="number" style={{width:'80px', border:'none', borderBottom:'1px solid #999', outline:'none', background:'transparent', color:'#000', textAlign:'center', fontWeight:'bold'}} value={numero} onChange={e=>setNumero(e.target.value?Number(e.target.value):"")} placeholder="Auto" />
                         </div>
                         <div style={{fontSize:'13px', color:'#333', marginTop:'4px'}}>Fecha: {new Date().toLocaleDateString()}</div>
                     </div>
@@ -466,23 +486,27 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 <div style={{ marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize:'13px' }}>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Cliente</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteNombre} onChange={e=>setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
+                        <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'100%', padding:'4px 0', fontSize:'14px'}}>{clienteNombre || '\u00A0'}</span>
+                        <input className="print-hide" style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteNombre} onChange={e=>setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
                     </div>
                     <div>
-                        <label className="full">RUC <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteRuc} onChange={e => setClienteRuc(e.target.value)} onBlur={e => onRucBlur(e.target.value)} placeholder="RUC del cliente" /></label>
+                        <label className="full">RUC <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'100%', padding:'4px 0', fontSize:'14px'}}>{clienteRuc || '\u00A0'}</span><input className="print-hide" style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteRuc} onChange={e => setClienteRuc(e.target.value)} onBlur={e => onRucBlur(e.target.value)} placeholder="RUC del cliente" /></label>
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Email</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteEmail} onChange={e=>setClienteEmail(e.target.value)} placeholder="email@cliente.com" />
+                        <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'100%', padding:'4px 0', fontSize:'14px'}}>{clienteEmail || '\u00A0'}</span>
+                        <input className="print-hide" style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteEmail} onChange={e=>setClienteEmail(e.target.value)} placeholder="email@cliente.com" />
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Teléfono / Dirección</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteTelefono} onChange={e=>setClienteTelefono(e.target.value)} placeholder="Teléfono o dirección" />
+                        <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'100%', padding:'4px 0', fontSize:'14px'}}>{clienteTelefono || '\u00A0'}</span>
+                        <input className="print-hide" style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteTelefono} onChange={e=>setClienteTelefono(e.target.value)} placeholder="Teléfono o dirección" />
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Validez</label>
                         <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
-                            <input type="number" style={{width:'50px', border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px', textAlign:'center'}} value={validezDias} onChange={e=>setValidezDias(Number(e.target.value))} /> <span style={{color:'#555'}}>días</span>
+                            <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'50px', textAlign:'center', padding:'4px 0', fontSize:'14px'}}>{validezDias}</span>
+                            <input className="print-hide" type="number" style={{width:'50px', border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px', textAlign:'center'}} value={validezDias} onChange={e=>setValidezDias(Number(e.target.value))} /> <span style={{color:'#555'}}>días</span>
                         </div>
                     </div>
                 </div>
@@ -509,15 +533,18 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 {grupos.map((g, gIdx) => (
                     <div key={g.id} style={{ marginBottom: '20px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', backgroundColor: '#f4f6f8', padding: '8px 10px', border: '1px solid #ddd', borderRadius: '4px 4px 0 0' }}>
-                            <select style={{marginRight:'10px', color:'#000', background:'transparent', border:'1px solid #ccc', borderRadius:'3px', padding:'2px 4px', fontWeight:'bold', fontSize:'12px'}} value={g.es_suma?"suma":"resta"} onChange={e=>{
+                            <span className="print-only" style={{display:'none', marginRight:'10px', color:'#000', fontWeight:'bold', fontSize:'12px'}}>{g.es_suma ? '(+)' : '(−) DESCUENTO'}</span>
+                            <select className="print-hide" style={{marginRight:'10px', color:'#000', background:'transparent', border:'1px solid #ccc', borderRadius:'3px', padding:'2px 4px', fontWeight:'bold', fontSize:'12px'}} value={g.es_suma?"suma":"resta"} onChange={e=>{
                                 const ng = [...grupos]; ng[gIdx].es_suma = e.target.value==="suma"; setGrupos(ng);
                             }}>
                                 <option value="suma">(+)</option>
                                 <option value="resta">(−) DESCUENTO</option>
                             </select>
                             
+                            <span className="print-only" style={{display:'none', flex: 1, fontWeight: 'bold', color: '#1a1a2e', fontSize: '14px'}}>{g.nombre || '\u00A0'}</span>
                             <input 
                                 list="grupos-list"
+                                className="print-hide"
                                 style={{ flex: 1, border: 'none', background: 'transparent', outline: 'none', fontWeight: 'bold', color: '#1a1a2e', fontSize: '14px' }} 
                                 placeholder="Nombre del Grupo (ej. Honorarios Profesionales)"
                                 value={g.nombre}
@@ -547,8 +574,10 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                 return (
                                     <tr key={c.id} style={{ borderBottom: '1px solid #eee' }}>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
+                                            <span className="print-only" style={{display:'none', width:'100%', fontSize:'13px'}}>{c.descripcion || '\u00A0'}</span>
                                             <input 
                                                 list="conceptos-list"
+                                                className="print-hide"
                                                 style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'13px', paddingBottom:'6px' }} 
                                                 value={c.descripcion}
                                                 placeholder="Descripción del concepto"
@@ -562,10 +591,12 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                             />
                                         </td>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
-                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'center', fontSize:'13px', paddingBottom:'6px' }} value={c.cantidad} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].cantidad = Number(e.target.value); setGrupos(ng); }} />
+                                            <span className="print-only" style={{display:'none', width:'100%', textAlign:'center', fontSize:'13px'}}>{c.cantidad}</span>
+                                            <input className="print-hide" type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'center', fontSize:'13px', paddingBottom:'6px' }} value={c.cantidad} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].cantidad = Number(e.target.value); setGrupos(ng); }} />
                                         </td>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
-                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'right', fontSize:'13px', paddingBottom:'6px' }} value={c.precio_unitario} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].precio_unitario = Number(e.target.value); setGrupos(ng); }} />
+                                            <span className="print-only" style={{display:'none', width:'100%', textAlign:'right', fontSize:'13px'}}>{c.precio_unitario?.toLocaleString()}</span>
+                                            <input className="print-hide" type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'right', fontSize:'13px', paddingBottom:'6px' }} value={c.precio_unitario} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].precio_unitario = Number(e.target.value); setGrupos(ng); }} />
                                         </td>
                                         <td className="no-print" style={{ padding: '4px 8px', borderRight: '1px solid #ddd', textAlign:'center' }}>
                                             <select style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'12px', textAlign:'center' }} value={c.tasa_iva ?? 10} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].tasa_iva = Number(e.target.value); setGrupos(ng); }}>

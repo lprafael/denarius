@@ -181,7 +181,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         const originalDisplays = hiddenElements.map(el => el.style.display);
         try {
             hiddenElements.forEach(el => { el.style.display = "none"; });
-            const canvas = await html2canvas(printRef.current, { scale: 1.5, useCORS: true, logging: false, allowTaint: true });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, logging: false, allowTaint: true });
             const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF("p", "mm", "a4");
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -201,7 +201,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         const originalDisplays = hiddenElements.map(el => el.style.display);
         try {
             hiddenElements.forEach(el => { el.style.display = "none"; });
-            const canvas = await html2canvas(printRef.current, { scale: 1.5, useCORS: true, logging: false, allowTaint: true });
+            const canvas = await html2canvas(printRef.current, { scale: 3, useCORS: true, logging: false, allowTaint: true });
             const imgData = canvas.toDataURL("image/png");
             const pdf = new jsPDF("p", "mm", "a4");
             const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -466,23 +466,23 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 <div style={{ marginBottom: '25px', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', fontSize:'13px' }}>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Cliente</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteNombre} onChange={e=>setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
+                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteNombre} onChange={e=>setClienteNombre(e.target.value)} placeholder="Nombre del cliente" />
                     </div>
                     <div>
-                        <label className="full">RUC <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteRuc} onChange={e => setClienteRuc(e.target.value)} onBlur={e => onRucBlur(e.target.value)} placeholder="RUC del cliente" /></label>
+                        <label className="full">RUC <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteRuc} onChange={e => setClienteRuc(e.target.value)} onBlur={e => onRucBlur(e.target.value)} placeholder="RUC del cliente" /></label>
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Email</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteEmail} onChange={e=>setClienteEmail(e.target.value)} placeholder="email@cliente.com" />
+                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteEmail} onChange={e=>setClienteEmail(e.target.value)} placeholder="email@cliente.com" />
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Teléfono / Dirección</label>
-                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0', fontSize:'14px'}} value={clienteTelefono} onChange={e=>setClienteTelefono(e.target.value)} placeholder="Teléfono o dirección" />
+                        <input style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px'}} value={clienteTelefono} onChange={e=>setClienteTelefono(e.target.value)} placeholder="Teléfono o dirección" />
                     </div>
                     <div>
                         <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Validez</label>
                         <div style={{display:'flex', alignItems:'center', gap:'4px'}}>
-                            <input type="number" style={{width:'50px', border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', padding:'4px 0', fontSize:'14px', textAlign:'center'}} value={validezDias} onChange={e=>setValidezDias(Number(e.target.value))} /> <span style={{color:'#555'}}>días</span>
+                            <input type="number" style={{width:'50px', border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'14px', textAlign:'center'}} value={validezDias} onChange={e=>setValidezDias(Number(e.target.value))} /> <span style={{color:'#555'}}>días</span>
                         </div>
                     </div>
                 </div>
@@ -549,7 +549,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
                                             <input 
                                                 list="conceptos-list"
-                                                style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'13px' }} 
+                                                style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'13px', paddingBottom:'6px' }} 
                                                 value={c.descripcion}
                                                 placeholder="Descripción del concepto"
                                                 onChange={e => {
@@ -562,10 +562,10 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                             />
                                         </td>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
-                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'center', fontSize:'13px' }} value={c.cantidad} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].cantidad = Number(e.target.value); setGrupos(ng); }} />
+                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'center', fontSize:'13px', paddingBottom:'6px' }} value={c.cantidad} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].cantidad = Number(e.target.value); setGrupos(ng); }} />
                                         </td>
                                         <td style={{ padding: '4px 8px', borderRight: '1px solid #ddd' }}>
-                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'right', fontSize:'13px' }} value={c.precio_unitario} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].precio_unitario = Number(e.target.value); setGrupos(ng); }} />
+                                            <input type="number" style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', textAlign:'right', fontSize:'13px', paddingBottom:'6px' }} value={c.precio_unitario} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].precio_unitario = Number(e.target.value); setGrupos(ng); }} />
                                         </td>
                                         <td className="no-print" style={{ padding: '4px 8px', borderRight: '1px solid #ddd', textAlign:'center' }}>
                                             <select style={{ width: '100%', border: 'none', background: 'transparent', outline: 'none', color:'#000', fontSize:'12px', textAlign:'center' }} value={c.tasa_iva ?? 10} onChange={e => { const ng = [...grupos]; ng[gIdx].conceptos[cIdx].tasa_iva = Number(e.target.value); setGrupos(ng); }}>

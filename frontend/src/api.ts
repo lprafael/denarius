@@ -174,6 +174,17 @@ export async function upsertCliente(body: any): Promise<any> {
   return r.json();
 }
 
+export async function listClientes(): Promise<any[]> {
+  const r = await fetch(`${API}/clientes`, { headers: { ...authHeaders() } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function deleteCliente(id: number): Promise<void> {
+  const r = await fetch(`${API}/clientes/${id}`, { method: "DELETE", headers: { ...authHeaders() } });
+  if (!r.ok) throw new Error(await r.text());
+}
+
 export async function getDepartamentos(): Promise<any[]> {
   const r = await fetch(`${API}/clientes/geo/departamentos`, {
     headers: { ...authHeaders() },

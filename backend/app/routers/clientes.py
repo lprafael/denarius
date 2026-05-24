@@ -57,6 +57,23 @@ def crear_o_actualizar_cliente(
     db.refresh(cliente)
     return cliente
 
+@router.delete("/{id}")
+def eliminar_cliente(
+    id: int,
+    db: Session = Depends(get_db),
+    usuario: Usuario = Depends(get_current_user)
+):
+    cliente = db.query(Cliente).filter(
+        Cliente.id == id,
+        Cliente.empresa_id == usuario.empresa_id
+    ).first()
+    if not cliente:
+        raise HTTPException(404, "Cliente no encontrado")
+    
+    db.delete(cliente)
+    db.commit()
+    return {"status": "ok"}
+
 @router.get("/geo/departamentos")
 def listar_departamentos(db: Session = Depends(get_db)):
     res = db.execute(text("SELECT id, nombre FROM geo_departamento ORDER BY nombre")).fetchall()

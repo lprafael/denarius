@@ -45,6 +45,7 @@ import { FacturacionView } from "./views/FacturacionView";
 import { InventarioView } from "./views/InventarioView";
 import { ComprasView } from "./views/ComprasView";
 import { UsuariosView } from "./views/UsuariosView";
+import { ClientesView } from "./views/ClientesView";
 
 
 export function App() {
@@ -98,7 +99,7 @@ export function App() {
   
   const googleInitialized = useRef(false);
 
-  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config" | "presupuestos" | "auditoria">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config" | "presupuestos" | "auditoria" | "clientes">("dashboard");
   const [productos, setProductos] = useState<any[]>([]);
   const [compras, setCompras] = useState<any[]>([]);
   const [usuariosEmpresa, setUsuariosEmpresa] = useState<any[]>([]);
@@ -491,8 +492,9 @@ export function App() {
         <nav className="tab-nav">
           <button className={activeTab === "dashboard" ? "active" : ""} onClick={() => setActiveTab("dashboard")}>Dashboard</button>
           <button className={activeTab === "factura" ? "active" : ""} onClick={() => setActiveTab("factura")}>Emitir</button>
-          <button className={activeTab === "inventario" ? "active" : ""} onClick={() => setActiveTab("inventario")}>Stock</button>
-          <button className={activeTab === "compras" ? "active" : ""} onClick={() => setActiveTab("compras")}>Compras (IVA)</button>
+          <button className={activeTab === "inventario" ? "active" : ""} onClick={() => setActiveTab("inventario")}>📦 Productos/Servicios</button>
+          <button className={activeTab === "clientes" ? "active" : ""} onClick={() => setActiveTab("clientes")}>👥 Clientes</button>
+          <button className={activeTab === "compras" ? "active" : ""} onClick={() => setActiveTab("compras")}>📥 Compras SIFEN</button>
           <button className={activeTab === "presupuestos" ? "active" : ""} onClick={() => setActiveTab("presupuestos")}>Presupuestos</button>
           {isCompanyAdmin && (
             <button className={activeTab === "usuarios" ? "active" : ""} onClick={() => setActiveTab("usuarios")}>Usuarios</button>
@@ -683,6 +685,12 @@ export function App() {
             {activeTab === "inventario" && (
                 <section>
                     <InventarioView productos={productos} refresh={refresh} />
+                </section>
+            )}
+
+            {activeTab === "clientes" && (
+                <section>
+                    <ClientesView refresh={refresh} />
                 </section>
             )}
 

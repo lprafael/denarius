@@ -457,7 +457,7 @@ class PresupuestoCreate(BaseModel):
     cliente_telefono: str = ""
     cliente_direccion: str = ""
     cliente_ruc: Optional[str] = ""
-    motivo: str = ""
+    motivo: Optional[str] = None
     texto_pie: str = ""
     grupos: list[PresupuestoGrupoCreate] = []
 
@@ -491,7 +491,7 @@ class PresupuestoOut(BaseModel):
     cliente_email: str
     cliente_telefono: str
     cliente_direccion: str
-    motivo: str
+    motivo: Optional[str] = None
     total: int
     estado: str
     email_enviado: bool

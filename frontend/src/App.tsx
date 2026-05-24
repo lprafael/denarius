@@ -3,7 +3,6 @@ declare global { interface Window { google: any } }
 
 import logo from "./assets/logo.png";
 import {
-  createFactura,
   getEmisor,
   getHealth,
   getXml,
@@ -17,13 +16,7 @@ import {
   getAdminDashboard,
 
   createSuperAdmin,
-  consultarRuc,
-  getClienteByRuc,
-  upsertCliente,
 
-  getDepartamentos,
-  getDistritos,
-  getBarrios,
   downloadDoc,
   registrarEmpresa,
   restoreAccessToken,
@@ -34,26 +27,24 @@ import {
   deleteEquipo,
   updateEmisor,
   listProductos,
-  createProducto,
-  updateProducto,
-  deleteProducto,
   listCompras,
-  syncCompras,
   getProyeccionIva,
   getStatsVentas,
   getTopProductos,
   listUsuarios,
-  createUsuario,
-  deleteUsuario,
-  updateUsuario,
   type EmisorOut,
 
-  type FacturaCreate,
   type FacturaOut,
   updateAdminEmail,
-  resetAdminPassword
+  resetAdminPassword,
+  listAuditoria,
+  type AuditLogOut
 } from "./api";
-import { PresupuestosView } from "./Presupuestos";
+import { PresupuestosView } from "./views/PresupuestosView";
+import { FacturacionView } from "./views/FacturacionView";
+import { InventarioView } from "./views/InventarioView";
+import { ComprasView } from "./views/ComprasView";
+import { UsuariosView } from "./views/UsuariosView";
 
 
 export function App() {
@@ -104,38 +95,20 @@ export function App() {
   const [regGoogleToken, setRegGoogleToken] = useState<string | null>(null);
   const [regEmail, setRegEmail] = useState("");
   const [regPass, setRegPass] = useState("");
-
-  const [ruc, setRuc] = useState("");
-  const [dv, setDv] = useState("");
-  const [nombre, setNombre] = useState("");
-  const [clienteEmail, setClienteEmail] = useState("");
-  const [clienteTel, setClienteTel] = useState("");
-  const [clienteDir, setClienteDir] = useState("");
-  const [deptoId, setDeptoId] = useState<number>(0);
-  const [distritoId, setDistritoId] = useState<number>(0);
-  const [barrioId, setBarrioId] = useState<number>(0);
-
+  
   const googleInitialized = useRef(false);
 
-  const [showClienteModal, setShowClienteModal] = useState<boolean>(false);
-  const [deptos, setDeptos] = useState<any[]>([]);
-  const [distritos_local, setDistritosLocal] = useState<any[]>([]);
-  const [barrios_local, setBarriosLocal] = useState<any[]>([]);
-  const [lineas, setLineas] = useState<any[]>([
-    { producto_id: undefined, d_cod_int: "ART001", d_des_pro_ser: "Producto o servicio", d_cant_pro_ser: 1, d_p_uni_pro_ser: 0, d_tasa_iva: 10 },
-  ]);
-
-  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config" | "presupuestos">("dashboard");
+  const [activeTab, setActiveTab] = useState<"dashboard" | "factura" | "inventario" | "compras" | "usuarios" | "config" | "presupuestos" | "auditoria">("dashboard");
   const [productos, setProductos] = useState<any[]>([]);
   const [compras, setCompras] = useState<any[]>([]);
   const [usuariosEmpresa, setUsuariosEmpresa] = useState<any[]>([]);
   const [proyeccionIva, setProyeccionIva] = useState<any | null>(null);
   const [statsVentas, setStatsVentas] = useState<any[]>([]);
   const [topProductos, setTopProductos] = useState<any[]>([]);
-  const [showProductoModal, setShowProductoModal] = useState(false);
-  const [editingProducto, setEditingProducto] = useState<any>(null);
-  const [showUsuarioModal, setShowUsuarioModal] = useState(false);
-  const [editingUsuario, setEditingUsuario] = useState<any>(null);
+  const [auditoriaLogs, setAuditoriaLogs] = useState<AuditLogOut[]>([]);
+  
+  // State for bridging Presupuestos -> Facturacion
+  const [facturaInitParams, setFacturaInitParams] = useState<any>(null);
 
   const isCompanyAdmin = usuarioRol?.toLowerCase().includes("admin") && usuarioRol?.toLowerCase() !== "superadmin";
 
@@ -161,8 +134,8 @@ export function App() {
         const dash = await getAdminDashboard();
         setDashboard(dash);
         if (adminActiveTab === "facturas") {
-           const l = await listFacturas(adminFacturaEmpresaId);
-           setFacturas(l);
+           const audit = await listAuditoria(adminFacturaEmpresaId);
+           setAuditoriaLogs(audit);
         }
       } else {
         const e = await getEmisor();
@@ -188,8 +161,7 @@ export function App() {
             setUsuariosEmpresa(listU);
         }
 
-        const d = await getDepartamentos();
-        setDeptos(d);
+
       }
     } catch (ex: any) {
       console.error("Refresh error:", ex);
@@ -203,25 +175,6 @@ export function App() {
   }, [authed, usuarioRol, adminActiveTab, adminFacturaEmpresaId, logout, isCompanyAdmin]);
 
 
-  useEffect(() => {
-    async function fetchDistritos() {
-      if (deptoId >= 0) {
-        const d = await getDistritos(deptoId);
-        setDistritosLocal(d);
-      }
-    }
-    if (authed) fetchDistritos();
-  }, [deptoId, authed]);
-
-  useEffect(() => {
-    async function fetchBarrios() {
-      if (deptoId >= 0 && distritoId >= 0) {
-        const b = await getBarrios(deptoId, distritoId);
-        setBarriosLocal(b);
-      }
-    }
-    if (authed) fetchBarrios();
-  }, [deptoId, distritoId, authed]);
 
   useEffect(() => {
     let d = localStorage.getItem("denarius_device_id");
@@ -313,54 +266,7 @@ export function App() {
     }
   }, []);
 
-  const [clienteEncontrado, setClienteEncontrado] = useState<any>(null);
 
-  async function onRucBlur(val: string) {
-    if (!val) { setDv(""); setClienteEncontrado(null); return; }
-    let total = 0;
-    let k = 2;
-    for (let i = val.length - 1; i >= 0; i--) {
-      let b = val.charAt(i);
-      if (b >= '0' && b <= '9') {
-        total += parseInt(b) * k;
-        k++;
-        if (k > 11) k = 2;
-      }
-    }
-    let r = total % 11;
-    let calcDv = r > 1 ? (11 - r).toString() : "0";
-    setDv(calcDv);
-
-    try {
-      const cli = await getClienteByRuc(val);
-      if (cli) {
-        setNombre(cli.razon_social);
-        setClienteEmail(cli.email);
-        setClienteTel(cli.telefono);
-        setClienteDir(cli.direccion);
-        if (cli.c_dep) setDeptoId(cli.c_dep);
-        if (cli.c_ciu) setDistritoId(cli.c_ciu);
-        if (cli.c_bar) setBarrioId(cli.c_bar);
-        setDv(cli.ruc_con_dv.split('-')[1] || calcDv);
-        setClienteEncontrado(cli);
-        return;
-      } else {
-        setClienteEncontrado(null);
-      }
-    } catch (e) {}
-
-    if (val.length >= 5) {
-      try {
-        const r = await consultarRuc(val);
-        if (r.ok && r.razon_social) {
-          setNombre(r.razon_social);
-          if (r.dv) setDv(r.dv);
-          // It's from SIFEN but NOT in local DB
-          setClienteEncontrado({ _is_new_sifen: true });
-        }
-      } catch (err) {}
-    }
-  }
 
   async function onLogin(e: React.FormEvent) {
     e.preventDefault();
@@ -408,50 +314,7 @@ export function App() {
     }
   }
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setLoading(true); setErr("");
-    try {
-      const payload: FacturaCreate = {
-        receptor_ruc: ruc,
-        receptor_dv: dv,
-        receptor_nombre: nombre,
-        receptor_tel: clienteTel,
-        receptor_dir: clienteDir,
-        lineas: lineas.map((l) => ({
-          producto_id: l.producto_id,
-          d_cod_int: l.d_cod_int,
-          d_des_pro_ser: l.d_des_pro_ser,
-          d_cant_pro_ser: Number(l.d_cant_pro_ser),
-          d_p_uni_pro_ser: Math.round(Number(l.d_p_uni_pro_ser)),
-          d_tasa_iva: Number(l.d_tasa_iva),
-        })),
-      };
-      await createFactura(payload);
-      try {
-        await upsertCliente({
-          ruc_con_dv: `${ruc}-${dv}`,
-          razon_social: nombre,
-          email: clienteEmail,
-          telefono: clienteTel,
-          direccion: clienteDir,
-          c_dep: deptoId,
-          d_des_dep: deptos.find(d => d.id === deptoId)?.nombre || "",
-          c_ciu: distritoId,
-          d_des_ciu: distritos_local.find(d => d.id === distritoId)?.nombre || "",
-          c_bar: barrioId,
-          d_des_bar: barrios_local.find(b => b.id === barrioId)?.nombre || ""
-        });
-      } catch (e) {}
-      setRuc(""); setNombre(""); setLineas([{ producto_id: undefined, d_cod_int: "", d_des_pro_ser: "", d_cant_pro_ser: 1, d_p_uni_pro_ser: 0, d_tasa_iva: 10 }]);
-      await refresh();
-      alert("Factura emitida");
-    } catch (ex) {
-      setErr(String(ex));
-    } finally {
-      setLoading(false);
-    }
-  }
+
 
   async function downloadXml(id: number) {
     try {
@@ -560,27 +423,7 @@ export function App() {
     } catch (e) { setErr(String(e)); }
   }
 
-  async function onSaveProducto(e: React.FormEvent) {
-    e.preventDefault(); if (!editingProducto) return;
-    setLoading(true);
-    try {
-      if (editingProducto.id) await updateProducto(editingProducto.id, editingProducto);
-      else await createProducto(editingProducto);
-      setShowProductoModal(false); setEditingProducto(null);
-      await refresh();
-    } catch (ex) { setErr(String(ex)); } finally { setLoading(false); }
-  }
 
-  async function onDeleteProducto(id: number) {
-    if (!window.confirm("¿Eliminar?")) return;
-    try { await deleteProducto(id); await refresh(); } catch (ex) { setErr(String(ex)); }
-  }
-
-  async function onSyncCompras() {
-    setLoading(true);
-    try { await syncCompras(); await refresh(); alert("Sincronizado"); }
-    catch (ex) { setErr(String(ex)); } finally { setLoading(false); }
-  }
 
   async function onUpdateEmisorConfig() {
     setLoading(true);
@@ -590,26 +433,39 @@ export function App() {
     } catch (e) { setErr(String(e)); } finally { setLoading(false); }
   }
 
-  async function onSaveUsuario(e: React.FormEvent) {
-    e.preventDefault(); setLoading(true);
-    try {
-      if (editingUsuario?.id) {
-          await updateUsuario(editingUsuario.id, editingUsuario);
-      } else {
-          await createUsuario(editingUsuario);
-      }
-      setShowUsuarioModal(false); setEditingUsuario(null);
-      await refresh();
-    } catch (ex) { setErr(String(ex)); } finally { setLoading(false); }
-  }
+  function handleFacturarPresupuesto(p: any) {
+    const rucParts = p.cliente_ruc ? p.cliente_ruc.split('-') : ["", ""];
+    
+    const newLineas: any[] = [];
+    if (p.grupos) {
+        p.grupos.forEach((g: any) => {
+            if (g.conceptos) {
+                g.conceptos.forEach((c: any) => {
+                    const prodMatch = productos.find(prod => prod.descripcion.toLowerCase() === c.descripcion.toLowerCase());
+                    newLineas.push({
+                        producto_id: prodMatch ? prodMatch.id : undefined,
+                        d_cod_int: prodMatch ? prodMatch.sku : "",
+                        d_des_pro_ser: c.descripcion,
+                        d_cant_pro_ser: c.cantidad,
+                        d_p_uni_pro_ser: c.precio_unitario,
+                        d_tasa_iva: c.tasa_iva
+                    });
+                });
+            }
+        });
+    }
 
-  async function onToggleUsuario(id: number, currentActivo: boolean) {
-    if (!window.confirm(`¿${currentActivo ? "Deshabilitar" : "Habilitar"} usuario?`)) return;
-    try {
-      if (currentActivo) await deleteUsuario(id);
-      else await updateUsuario(id, { activo: true });
-      await refresh();
-    } catch (ex) { setErr(String(ex)); }
+    setFacturaInitParams({
+      ruc: rucParts[0],
+      dv: rucParts[1] || "",
+      nombre: p.cliente_nombre || "",
+      clienteDir: p.cliente_direccion || "",
+      clienteTel: p.cliente_telefono || "",
+      clienteEmail: p.cliente_email || "",
+      lineas: newLineas
+    });
+    
+    setActiveTab("factura");
   }
 
 
@@ -695,8 +551,8 @@ export function App() {
                                             setAdminFacturaEmpresaId(d.empresa_id);
                                             setAdminEmpresaNombre(d.nombre);
                                             setAdminActiveTab("facturas");
-                                            const l = await listFacturas(d.empresa_id);
-                                            setFacturas(l);
+                                            const audit = await listAuditoria(d.empresa_id);
+                                            setAuditoriaLogs(audit);
                                         }}>👁️</button>
                                     </td>
                                 </tr>
@@ -708,18 +564,20 @@ export function App() {
                     <>
                     <div className="h-stack" style={{justifyContent:'space-between', marginBottom:'1rem'}}>
                         <h3>Auditando: {adminEmpresaNombre || "Global"}</h3>
-                        <button className="linkish" onClick={() => { setAdminFacturaEmpresaId(undefined); setAdminEmpresaNombre("Global"); refresh(); }}>Limpiar Filtro</button>
+                        <button className="linkish" onClick={async () => { setAdminFacturaEmpresaId(undefined); setAdminEmpresaNombre("Global"); setLoading(true); try{ const l = await listAuditoria(); setAuditoriaLogs(l); }finally{setLoading(false);} }}>Limpiar Filtro</button>
                     </div>
                     <table className="table">
-                        <thead><tr><th>ID</th><th>Fecha</th><th>Empresa</th><th>Monto</th><th>Estado</th></tr></thead>
+                        <thead><tr><th>ID</th><th>Fecha</th><th>Empresa ID</th><th>Usuario ID</th><th>Acción</th><th>Detalle</th><th>IP</th></tr></thead>
                         <tbody>
-                            {facturas.map(f => (
-                                <tr key={f.id}>
-                                    <td>{f.id}</td>
-                                    <td>{new Date(f.created_at).toLocaleDateString()}</td>
-                                    <td>{f.empresa_id}</td>
-                                    <td>{f.d_tot_gral_ope.toLocaleString()}</td>
-                                    <td>{f.estado_envio}</td>
+                            {auditoriaLogs.map(a => (
+                                <tr key={a.id}>
+                                    <td>{a.id}</td>
+                                    <td>{new Date(a.created_at).toLocaleString()}</td>
+                                    <td>{a.empresa_id || "-"}</td>
+                                    <td>{a.usuario_id || "-"}</td>
+                                    <td><span className="badge info">{a.accion}</span></td>
+                                    <td>{a.detalle || "-"}</td>
+                                    <td>{a.ip}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -812,161 +670,31 @@ export function App() {
 
             {activeTab === "presupuestos" && (
                 <section>
-                    <PresupuestosView empresaNombre={empresaNombre} onAddCliente={() => setShowClienteModal(true)} />
+                    <PresupuestosView empresaNombre={empresaNombre} onFacturar={handleFacturarPresupuesto} />
                 </section>
             )}
 
             {activeTab === "factura" && (
                 <section className="grid">
-                    <div className="card wide">
-                        <h2>Emisor Actual</h2>
-                        {emisor && (
-                             <dl className="dl">
-                                <dt>RUC</dt><dd>{emisor.ruc_con_dv}</dd>
-                                <dt>Razón</dt><dd>{emisor.razon_social}</dd>
-                             </dl>
-                        )}
-                    </div>
-                    <div className="card wide">
-                        <h2>Emisión Factura Electrónica</h2>
-                        <form onSubmit={onSubmit} className="form">
-                            <div className="h-stack" style={{gap:'1rem'}}>
-                                <label style={{flex:2}}>RUC <input value={ruc} onChange={e=>setRuc(e.target.value)} onBlur={e=>onRucBlur(e.target.value)} /></label>
-                                <label style={{flex:1}}>DV <input value={dv} onChange={e=>setDv(e.target.value)} /></label>
-                            </div>
-
-                            {clienteEncontrado && !clienteEncontrado._is_new_sifen ? (
-                                <div className="alert success small h-stack" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginTop: '0.5rem', marginBottom: '0.5rem'}}>
-                                    <span>✅ Cliente Registrado en BBDD</span>
-                                    <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Actualizar Datos</button>
-                                </div>
-                            ) : clienteEncontrado?._is_new_sifen ? (
-                                <div className="alert info small h-stack" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginTop: '0.5rem', marginBottom: '0.5rem'}}>
-                                    <span>ℹ️ RUC Válido (SIFEN) - No registrado localmente</span>
-                                    <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Agregar a Base de Datos</button>
-                                </div>
-                            ) : ruc && ruc.length >= 5 ? (
-                                <div className="alert warning small h-stack" style={{justifyContent: 'space-between', padding: '0.5rem 1rem', marginTop: '0.5rem', marginBottom: '0.5rem'}}>
-                                    <span>⚠️ Cliente no encontrado en SIFEN ni localmente</span>
-                                    <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Agregar Manualmente</button>
-                                </div>
-                            ) : null}
-
-                            <label className="full">Nombre / Razón Social <input value={nombre} onChange={e=>setNombre(e.target.value)} /></label>
-                            <label className="full">Dirección <input value={clienteDir} onChange={e=>setClienteDir(e.target.value)} /></label>
-                            <div className="full lineas">
-                                {lineas.map((ln, i) => (
-                                    <div key={i} className="linea-row" style={{display:'flex', gap:'8px', marginBottom:'8px'}}>
-                                        <select
-                                            style={{ width: '150px' }}
-                                            value={ln.producto_id || ""}
-                                            onChange={(e) => {
-                                                const pid = Number(e.target.value);
-                                                const prod = productos.find(p => p.id === pid);
-                                                const n = [...lineas];
-                                                if (prod) {
-                                                    n[i].producto_id = prod.id;
-                                                    n[i].d_cod_int = prod.sku;
-                                                    n[i].d_des_pro_ser = prod.descripcion;
-                                                    n[i].d_p_uni_pro_ser = prod.precio_venta;
-                                                } else { n[i].producto_id = undefined; }
-                                                setLineas(n);
-                                            }}
-                                        >
-                                            <option value="">Articulo...</option>
-                                            {productos.map(p => <option key={p.id} value={p.id}>{p.sku} - {p.descripcion}</option>)}
-                                        </select>
-                                        <input className="grow" value={ln.d_des_pro_ser} onChange={e => { const n=[...lineas]; n[i].d_des_pro_ser=e.target.value; setLineas(n); }} />
-                                        <input type="number" style={{width:'60px'}} value={ln.d_cant_pro_ser} onChange={e => { const n=[...lineas]; n[i].d_cant_pro_ser=Number(e.target.value); setLineas(n); }} />
-                                        <input type="number" style={{width:'100px'}} value={ln.d_p_uni_pro_ser} onChange={e => { const n=[...lineas]; n[i].d_p_uni_pro_ser=Number(e.target.value); setLineas(n); }} />
-                                    </div>
-                                ))}
-                                <button type="button" className="secondary small" onClick={()=>setLineas([...lineas, {producto_id:undefined, d_cod_int:"", d_des_pro_ser:"", d_cant_pro_ser:1, d_p_uni_pro_ser:0, d_tasa_iva:10}])}>+ Línea</button>
-                            </div>
-                            <button type="submit" className="primary full" disabled={loading}>Firmar y Emitir SIFEN</button>
-                        </form>
-                    </div>
+                    <FacturacionView emisor={emisor} productos={productos} refresh={refresh} initialFacturaParams={facturaInitParams} />
                 </section>
             )}
 
             {activeTab === "inventario" && (
-                <section className="card wide">
-                    <div className="h-stack" style={{justifyContent:'space-between', marginBottom:'1.5rem'}}>
-                        <h2>Gestión de Stock</h2>
-                        <button className="primary" onClick={() => { setEditingProducto({ sku: "", descripcion: "", precio_venta: 0, precio_costo: 0, stock_actual: 0 }); setShowProductoModal(true); }}>+ Nuevo Producto</button>
-                    </div>
-                    <table className="table">
-                        <thead><tr><th>SKU</th><th>Descripción</th><th>Stock</th><th>Precio</th><th>Acciones</th></tr></thead>
-                        <tbody>
-                            {productos.map(p => (
-                                <tr key={p.id}>
-                                    <td className="mono">{p.sku}</td>
-                                    <td>{p.descripcion}</td>
-                                    <td className={p.stock_actual < 5 ? 'error-text' : 'success-text'}>{p.stock_actual}</td>
-                                    <td>{p.precio_venta.toLocaleString()}</td>
-                                    <td>
-                                        <button className="linkish" onClick={() => { setEditingProducto(p); setShowProductoModal(true); }}>✏️</button>
-                                        {" | "}
-                                        <button className="linkish danger" onClick={() => onDeleteProducto(p.id)}>🗑️</button>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <section>
+                    <InventarioView productos={productos} refresh={refresh} />
                 </section>
             )}
 
             {activeTab === "compras" && (
-                <section className="card wide">
-                    <div className="h-stack" style={{justifyContent:'space-between', marginBottom:'1.5rem'}}>
-                        <h2>Facturas Recibidas</h2>
-                        <button className="secondary" onClick={onSyncCompras} disabled={loading}>Sincronizar SIFEN</button>
-                    </div>
-                    <table className="table">
-                        <thead><tr><th>Fecha</th><th>Emisor</th><th>RUC Emisor</th><th>Total</th><th>IVA</th></tr></thead>
-                        <tbody>
-                            {compras.map(c => (
-                                <tr key={c.id}>
-                                    <td>{new Date(c.fecha_emision).toLocaleDateString()}</td>
-                                    <td>{c.emisor_razon_social}</td>
-                                    <td>{c.emisor_ruc}</td>
-                                    <td>{c.monto_total.toLocaleString()}</td>
-                                    <td>{c.monto_iva.toLocaleString()}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <section>
+                    <ComprasView compras={compras} refresh={refresh} />
                 </section>
             )}
 
             {activeTab === "usuarios" && isCompanyAdmin && (
-                <section className="card wide">
-                    <div className="h-stack" style={{justifyContent:'space-between', marginBottom:'1.5rem'}}>
-                        <h2>Operadores de la Empresa</h2>
-                        <button className="primary" onClick={() => { setEditingUsuario({ nombre: "", email: "", password: "", rol: "operador" }); setShowUsuarioModal(true); }}>+ Nuevo Operador</button>
-                    </div>
-                    <table className="table">
-                        <thead><tr><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acciones</th></tr></thead>
-                        <tbody>
-                            {usuariosEmpresa.map(u => (
-                                <tr key={u.id}>
-                                    <td>{u.nombre}</td>
-                                    <td>{u.email}</td>
-                                    <td><span className="badge info">{u.rol.toUpperCase()}</span></td>
-                                    <td><span className={`badge ${u.activo ? 'activo' : 'inactivo'}`}>{u.activo ? 'ACTIVO' : 'INACTIVO'}</span></td>
-                                    <td>
-                                        <button className="linkish" onClick={() => { setEditingUsuario(u); setShowUsuarioModal(true); }}>✏️</button>
-                                        {" | "}
-                                        {u.email !== usuarioEmail && (
-                                            <button className="linkish" onClick={() => onToggleUsuario(u.id, u.activo)}>
-                                                {u.activo ? '🚫' : '✅'}
-                                            </button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+                <section>
+                    <UsuariosView usuariosEmpresa={usuariosEmpresa} usuarioEmail={usuarioEmail} refresh={refresh} />
                 </section>
             )}
 
@@ -1035,86 +763,7 @@ export function App() {
         <p>© 2026 Denarius System - Paraguay · SIFEN Cloud Native</p>
       </footer>
 
-      {showProductoModal && editingProducto && (
-          <div className="modal-overlay" onClick={()=>setShowProductoModal(false)}>
-              <div className="modal-content" onClick={e=>e.stopPropagation()} style={{background:'var(--panel)', padding:'2rem', borderRadius:'12px', width:'400px'}}>
-                  <h2>{editingProducto.id ? "Editar" : "Nuevo"} Producto</h2>
-                  <form onSubmit={onSaveProducto} className="form">
-                      <label className="full">SKU <input value={editingProducto.sku} onChange={e=>setEditingProducto({...editingProducto, sku:e.target.value})} /></label>
-                      <label className="full">Descripción <input value={editingProducto.descripcion} onChange={e=>setEditingProducto({...editingProducto, descripcion:e.target.value})} /></label>
-                      <label>Venta Gs. <input type="number" value={editingProducto.precio_venta} onChange={e=>setEditingProducto({...editingProducto, precio_venta:Number(e.target.value)})} /></label>
-                      <label>Stock <input type="number" value={editingProducto.stock_actual} onChange={e=>setEditingProducto({...editingProducto, stock_actual:Number(e.target.value)})} /></label>
-                      <button type="submit" className="primary full" style={{marginTop:'1rem'}}>Guardar Cambios</button>
-                  </form>
-              </div>
-          </div>
-      )}
 
-      {showUsuarioModal && editingUsuario && (
-          <div className="modal-overlay" onClick={()=>setShowUsuarioModal(false)}>
-              <div className="modal-content" onClick={e=>e.stopPropagation()} style={{background:'var(--panel)', padding:'2rem', borderRadius:'12px', width:'400px'}}>
-                  <h2>{editingUsuario.id ? "Editar" : "Nuevo"} Operador</h2>
-                  <form onSubmit={onSaveUsuario} className="form">
-                      <label className="full">Nombre Completo <input value={editingUsuario.nombre} onChange={e=>setEditingUsuario({...editingUsuario, nombre:e.target.value})} /></label>
-                      <label className="full">Email <input value={editingUsuario.email} onChange={e=>setEditingUsuario({...editingUsuario, email:e.target.value})} /></label>
-                      <label className="full">Contraseña {editingUsuario.id && <small>(Dejar vacío para mantener)</small>} <input type="password" value={editingUsuario.password || ""} onChange={e=>setEditingUsuario({...editingUsuario, password:e.target.value})} /></label>
-                      <label className="full">Rol <select value={editingUsuario.rol} onChange={e=>setEditingUsuario({...editingUsuario, rol:e.target.value})}>
-                          <option value="operador">Operador (Solo emisión)</option>
-                          <option value="admin">Administrador (Gestión total)</option>
-                      </select></label>
-                      <button type="submit" className="primary full" style={{marginTop:'1rem'}}>Guardar Usuario</button>
-                  </form>
-              </div>
-          </div>
-      )}
-
-      {showClienteModal && (
-        <div className="modal-overlay" onClick={() => setShowClienteModal(false)}>
-          <div className="modal-content" onClick={e => e.stopPropagation()} style={{maxWidth: '500px', background:'var(--panel)', padding:'2rem', borderRadius:'12px'}}>
-            <h2>Ficha de Cliente</h2>
-            <div className="form">
-              <label className="full">RUC <input value={`${ruc}-${dv}`} disabled /></label>
-              <label className="full">Razón Social <input value={nombre} onChange={e => setNombre(e.target.value)} /></label>
-              <label>Email <input value={clienteEmail} onChange={e => setClienteEmail(e.target.value)} /></label>
-              <label>Teléfono <input value={clienteTel} onChange={e => setClienteTel(e.target.value)} /></label>
-              <label className="full">Dirección <input value={clienteDir} onChange={e => setClienteDir(e.target.value)} /></label>
-              
-              <div className="h-stack" style={{marginTop: '1.5rem', gap: '1rem'}}>
-                <button className="secondary full" onClick={() => setShowClienteModal(false)}>Cancelar</button>
-                <button 
-                  className="primary full" 
-                  onClick={async () => {
-                    setLoading(true);
-                    try {
-                      await upsertCliente({
-                        ruc_con_dv: `${ruc}-${dv}`,
-                        razon_social: nombre,
-                        email: clienteEmail,
-                        telefono: clienteTel,
-                        direccion: clienteDir,
-                        c_dep: deptoId,
-                        d_des_dep: deptos.find(d => d.id === deptoId)?.nombre || "",
-                        c_ciu: distritoId,
-                        d_des_ciu: distritos_local.find(d => d.id === distritoId)?.nombre || "",
-                        c_bar: barrioId,
-                        d_des_bar: barrios_local.find(b => b.id === barrioId)?.nombre || ""
-                      });
-                      setClienteEncontrado({ _is_new_sifen: false });
-                      setShowClienteModal(false);
-                      alert("Cliente guardado correctamente");
-                    } catch (e) {
-                      setErr(String(e));
-                    } finally {
-                      setLoading(false);
-                    }
-                  }}
-                  disabled={loading || !ruc || !nombre}
-                >Guardar Datos</button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {showCertGuide && (
         <div className="modal-overlay" onClick={() => setShowCertGuide(false)}>

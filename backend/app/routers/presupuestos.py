@@ -10,7 +10,8 @@ import base64
 import os
 
 from app.database import get_db
-from app.models import Presupuesto, PresupuestoGrupo, PresupuestoConcepto, Empresa, Usuario
+from app.models import Presupuesto, PresupuestoGrupo, PresupuestoConcepto, Empresa, Usuario, Producto
+import uuid
 from app.schemas import PresupuestoCreate, PresupuestoOut, EmailEnviarIn
 from app.security import get_current_user
 from app.config import settings
@@ -50,6 +51,7 @@ def crear_presupuesto(
         cliente_email=presupuesto_in.cliente_email,
         cliente_telefono=presupuesto_in.cliente_telefono,
         cliente_direccion=presupuesto_in.cliente_direccion,
+        motivo=presupuesto_in.motivo,
         texto_pie=presupuesto_in.texto_pie,
         estado="borrador"
     )
@@ -75,6 +77,25 @@ def crear_presupuesto(
                 )
                 nuevo_grupo.conceptos.append(nuevo_concepto)
                 total_grupo += concepto_in.cantidad * concepto_in.precio_unitario
+
+                # Sync to inventory
+                if concepto_in.descripcion.strip():
+                    prod = db.query(Producto).filter(
+                        Producto.empresa_id == current_user.empresa_id,
+                        Producto.descripcion == concepto_in.descripcion.strip()
+                    ).first()
+                    if not prod:
+                        nuevo_prod = Producto(
+                            empresa_id=current_user.empresa_id,
+                            sku=f"P-{str(uuid.uuid4())[:8].upper()}",
+                            descripcion=concepto_in.descripcion.strip(),
+                            precio_venta=concepto_in.precio_unitario,
+                            precio_costo=0,
+                            stock_actual=0,
+                            stock_minimo=0,
+                            c_uni_med=77
+                        )
+                        db.add(nuevo_prod)
             if grupo_in.es_suma:
                 total_presupuesto += total_grupo
             else:
@@ -111,6 +132,7 @@ def update_presupuesto(
     presupuesto.cliente_email = presupuesto_in.cliente_email
     presupuesto.cliente_telefono = presupuesto_in.cliente_telefono
     presupuesto.cliente_direccion = presupuesto_in.cliente_direccion
+    presupuesto.motivo = presupuesto_in.motivo
     presupuesto.texto_pie = presupuesto_in.texto_pie
 
     # Remove old groups and concepts safely through ORM
@@ -137,6 +159,25 @@ def update_presupuesto(
                 )
                 nuevo_grupo.conceptos.append(nuevo_concepto)
                 total_grupo += concepto_in.cantidad * concepto_in.precio_unitario
+
+                # Sync to inventory
+                if concepto_in.descripcion.strip():
+                    prod = db.query(Producto).filter(
+                        Producto.empresa_id == current_user.empresa_id,
+                        Producto.descripcion == concepto_in.descripcion.strip()
+                    ).first()
+                    if not prod:
+                        nuevo_prod = Producto(
+                            empresa_id=current_user.empresa_id,
+                            sku=f"P-{str(uuid.uuid4())[:8].upper()}",
+                            descripcion=concepto_in.descripcion.strip(),
+                            precio_venta=concepto_in.precio_unitario,
+                            precio_costo=0,
+                            stock_actual=0,
+                            stock_minimo=0,
+                            c_uni_med=77
+                        )
+                        db.add(nuevo_prod)
             if grupo_in.es_suma:
                 total_presupuesto += total_grupo
             else:
@@ -185,15 +226,15 @@ def autocomplete_grupos(db: Session = Depends(get_db), current_user: Usuario = D
 
 @router.get("/autocomplete/conceptos")
 def autocomplete_conceptos(db: Session = Depends(get_db), current_user: Usuario = Depends(get_current_user)):
-    # Traer descripciones y precios únicos de conceptos anteriores
-    conceptos = db.query(
-        PresupuestoConcepto.descripcion, 
-        PresupuestoConcepto.precio_unitario
-    ).join(PresupuestoGrupo).join(Presupuesto).filter(
-        Presupuesto.empresa_id == current_user.empresa_id
-    ).distinct(PresupuestoConcepto.descripcion).all()
+    # Traer productos del inventario de la empresa
+    productos = db.query(
+        Producto.descripcion, 
+        Producto.precio_venta
+    ).filter(
+        Producto.empresa_id == current_user.empresa_id
+    ).all()
     
-    return [{"descripcion": c[0], "precio": c[1]} for c in conceptos if c[0]]
+    return [{"descripcion": c[0], "precio": c[1]} for c in productos if c[0]]
 
 
 @router.post("/{id}/enviar")

@@ -492,6 +492,8 @@ class Presupuesto(Base):
     cliente_telefono: Mapped[str] = mapped_column(String(32), default="")
     cliente_direccion: Mapped[str] = mapped_column(String(255), default="")
     
+    motivo: Mapped[str] = mapped_column(String(255), default="")
+    
     total: Mapped[int] = mapped_column(Integer, default=0)
     estado: Mapped[str] = mapped_column(String(32), default="borrador") # borrador, enviado, aceptado, rechazado
     email_enviado: Mapped[bool] = mapped_column(Boolean, default=False)

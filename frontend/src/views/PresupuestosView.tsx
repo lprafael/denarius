@@ -15,7 +15,7 @@ import {
     upsertCliente,
     restoreAccessToken,
     updatePresupuesto
-} from "./api";
+} from "../api";
 
 function numeroALetras(num: number): string {
     const unidades = ["", "UN", "DOS", "TRES", "CUATRO", "CINCO", "SEIS", "SIETE", "OCHO", "NUEVE"];
@@ -62,7 +62,7 @@ function numeroALetras(num: number): string {
     return str.trim();
 }
 
-    export function PresupuestosView({ empresaNombre, onAddCliente }: { empresaNombre: string; onAddCliente?: () => void }) {
+    export function PresupuestosView({ empresaNombre, onFacturar }: { empresaNombre: string, onFacturar?: (presupuesto: any) => void }) {
     const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
     const [presupuestos, setPresupuestos] = useState<any[]>([]);
 const [view, setView] = useState<"list" | "create">("list");
@@ -84,6 +84,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
   const [loading, setLoading] = useState(false);
     const [numero, setNumero] = useState<number | "">("");
     const [validezDias, setValidezDias] = useState<number>(15);
+    const [motivo, setMotivo] = useState<string>("");
     
     // Texto pie editable - se carga desde la config de la empresa
     const [textoPie, setTextoPie] = useState("");
@@ -277,6 +278,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                 cliente_email: clienteEmail,
                 cliente_telefono: clienteTelefono,
                 cliente_ruc: clienteRuc,
+                motivo: motivo,
                 validez_dias: validezDias,
                 texto_pie: textoPie,
                 grupos: grupos.map((g, i) => ({
@@ -340,6 +342,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         setClienteEmail("");
         setClienteTelefono("");
         setClienteRuc("");
+        setMotivo("");
         setValidezDias(recent.validez_dias ?? 15);
         setTextoPie(recent.texto_pie ?? textoPieDefault);
         setGrupos(
@@ -363,6 +366,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
         setClienteEmail("");
         setClienteTelefono("");
         setClienteRuc("");
+        setMotivo("");
         setNumero("");
         setGrupos([{ id: Date.now(), nombre: "Honorarios", es_suma: true, conceptos: [{ id: Date.now() + 1, descripcion: "Servicio", cantidad: 1, precio_unitario: 0, tasa_iva: 10 }] }]);
     }
@@ -426,6 +430,7 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                         setClienteNombre(p.cliente_nombre);
                                         setClienteEmail(p.cliente_email);
                                         setClienteTelefono(p.cliente_telefono);
+                                        setMotivo(p.motivo || "");
                                         setValidezDias(p.validez_dias || 15);
                                         setTextoPie(p.texto_pie || textoPieDefault);
                                         setGrupos(p.grupos && p.grupos.length > 0 ? p.grupos.map((g: any) => ({
@@ -443,6 +448,12 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                                         setEditingId(p.id);
                                         setView("create");
                                     }}>Ver/Editar</button>
+                                    {onFacturar && (
+                                        <>
+                                            {" | "}
+                                            <button className="linkish" style={{color:'#059669', fontWeight:'bold'}} onClick={() => onFacturar(p)}>Emitir Factura</button>
+                                        </>
+                                    )}
                                 </td>
                             </tr>
                         ))}
@@ -528,6 +539,13 @@ const [logoUrl, setLogoUrl] = useState<string>("");
                         <button type="button" className="secondary small" onClick={() => setShowClienteModal(true)}>Agregar Manualmente</button>
                     </div>
                 ) : null}
+
+                {/* Motivo del Presupuesto */}
+                <div style={{ marginBottom: '25px', marginTop: '10px' }}>
+                    <label style={{display:'block', fontWeight:'bold', marginBottom:'4px', color:'#555', fontSize:'11px', textTransform:'uppercase'}}>Concepto General / Motivo</label>
+                    <span className="print-only" style={{display:'none', borderBottom:'1px solid #ccc', width:'100%', padding:'4px 0', fontSize:'16px', fontWeight:'bold'}}>{motivo || '\u00A0'}</span>
+                    <input className="print-hide" style={{border:'none', borderBottom:'1px solid #ccc', outline:'none', background:'transparent', color:'#000', width:'100%', padding:'4px 0 8px 0', lineHeight:'1.5', fontSize:'16px', fontWeight:'bold'}} value={motivo} onChange={e=>setMotivo(e.target.value)} placeholder="Ej: Presupuesto de Titulación de Vehículo" />
+                </div>
 
                 {/* Groups */}
                 {grupos.map((g, gIdx) => (

@@ -77,6 +77,18 @@ export type LoginOut = {
   rol: string;
 };
 
+export type AuditLogOut = {
+  id: number;
+  empresa_id?: number;
+  usuario_id?: number;
+  accion: string;
+  entidad: string;
+  entidad_id: string;
+  detalle: string;
+  ip: string;
+  created_at: string;
+};
+
 export async function getHealth(): Promise<{ ok: boolean; nombre: string }> {
   const r = await fetch(`${API}/health`);
   if (!r.ok) throw new Error(await r.text());
@@ -553,6 +565,15 @@ export async function updatePresupuestoConfig(body: { texto_pie_presupuesto: str
         headers: { "Content-Type": "application/json", ...authHeaders() },
         body: JSON.stringify(body),
     });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+}
+
+export async function listAuditoria(empresaId?: number): Promise<AuditLogOut[]> {
+    const params = new URLSearchParams();
+    if (empresaId) params.append("empresa_id", empresaId.toString());
+    const url = params.toString() ? `${API}/auditoria?${params.toString()}` : `${API}/auditoria`;
+    const r = await fetch(url, { headers: { ...authHeaders() } });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
 }

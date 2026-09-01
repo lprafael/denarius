@@ -1,48 +1,140 @@
 """
 Seeder oficial de Catálogo Geográfico SIFEN / e-Kuatia (DNIT Paraguay).
-Fuente: Manuales/CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx
+Soporta carga ultrarrápida desde geo_oficial_data.json.gz o desde el Excel oficial Noviembre 2025.
 """
+from __future__ import annotations
+
+import gzip
+import json
 import os
 import sys
-import hashlib
 from pathlib import Path
-import openpyxl
 
 # Añadir el backend al path para importar modelos y base de datos
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.database import engine, SessionLocal, Base
-from app.models import GeoDepartamento, GeoDistrito, GeoCiudad, GeoBarrio
+from app.database import Base, SessionLocal, engine
+from app.models import GeoBarrio, GeoCiudad, GeoDepartamento, GeoDistrito
 
-EXCEL_PATH = Path(__file__).resolve().parent.parent.parent.parent / "Manuales" / "CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx"
+JSON_GZ_PATH = Path(__file__).resolve().parent / "geo_oficial_data.json.gz"
+POSSIBLE_EXCEL_PATHS = [
+    Path(__file__).resolve().parent.parent.parent / "Manuales" / "CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx",
+    Path(__file__).resolve().parent.parent.parent.parent / "Manuales" / "CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx",
+    Path("/app/xsd/CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx"),
+    Path("/app/Manuales/CÓDIGO DE REFERENCIA GEOGRAFICA_NOVIEMBRE_2025__.xlsx"),
+]
 
-def seed_catalogo_geografico():
-    if not EXCEL_PATH.exists():
-        print(f"ERROR: No se encontró el archivo Excel en {EXCEL_PATH}")
+
+def seed_catalogo_geografico() -> bool:
+    print("Iniciando carga del Catálogo Geográfico Oficial SIFEN (DNIT Noviembre 2025)...")
+    Base.metadata.create_all(bind=engine)
+    db = SessionLocal()
+
+    # Si ya existen departamentos y ciudades, omitir o verificar
+    existentes = db.query(GeoCiudad).count()
+    if existentes >= 6700:
+        print(f"Catálogo geográfico ya se encuentra poblado en BD ({existentes} ciudades).")
+        db.close()
+        return True
+
+    # 1. Intentar cargar desde JSON GZ ultrarrápido
+    if JSON_GZ_PATH.exists():
+        print(f"Cargando datos optimizados desde {JSON_GZ_PATH.name}...")
+        try:
+            with gzip.open(JSON_GZ_PATH, "rt", encoding="utf-8") as gf:
+                data = json.load(gf)
+
+            deps = data["departamentos"]
+            dists = data["distritos"]
+            cius = data["ciudades"]
+            barrios = data["barrios"]
+
+            # Guardar departamentos
+            for dep_id_str, dep_nom in deps.items():
+                dep_id = int(dep_id_str)
+                if not db.query(GeoDepartamento).filter(GeoDepartamento.id == dep_id).first():
+                    db.add(GeoDepartamento(id=dep_id, nombre=dep_nom))
+            db.commit()
+
+            # Guardar distritos
+            for dist_id_str, dist_info in dists.items():
+                dist_id = int(dist_id_str)
+                if not db.query(GeoDistrito).filter(GeoDistrito.id == dist_id).first():
+                    db.add(GeoDistrito(id=dist_id, departamento_id=dist_info["dep_id"], nombre=dist_info["nombre"]))
+            db.commit()
+
+            # Guardar ciudades (en lotes para alta velocidad)
+            ciu_objs = []
+            for ciu_id_str, ciu_info in cius.items():
+                ciu_id = int(ciu_id_str)
+                if not db.query(GeoCiudad).filter(GeoCiudad.id == ciu_id).first():
+                    ciu_objs.append(
+                        GeoCiudad(
+                            id=ciu_id,
+                            distrito_id=ciu_info["dist_id"],
+                            departamento_id=ciu_info["dep_id"],
+                            nombre=ciu_info["nombre"],
+                        )
+                    )
+            if ciu_objs:
+                db.bulk_save_objects(ciu_objs)
+                db.commit()
+
+            # Guardar barrios
+            bar_objs = []
+            for b in barrios:
+                bar_objs.append(
+                    GeoBarrio(
+                        codigo_barrio=b["c_bar"],
+                        nombre=b["d_bar"],
+                        ciudad_id=b["ciu_id"],
+                        distrito_id=b["dist_id"],
+                        departamento_id=b["dep_id"],
+                    )
+                )
+            if bar_objs:
+                db.bulk_save_objects(bar_objs)
+                db.commit()
+
+            print(f"Carga completada con éxito: {len(deps)} Deptos, {len(dists)} Distritos, {len(cius)} Ciudades, {len(barrios)} Barrios.")
+            return True
+        except Exception as e:
+            print(f"Error al cargar desde JSON GZ: {e}. Intentando desde Excel...")
+            db.rollback()
+
+    # 2. Fallback a Excel
+    excel_path = None
+    for p in POSSIBLE_EXCEL_PATHS:
+        if p.exists():
+            excel_path = p
+            break
+
+    if not excel_path:
+        print("ERROR: No se encontró ni el archivo geo_oficial_data.json.gz ni el Excel oficial.")
+        db.close()
         return False
 
-    print(f"Cargando catálogo geográfico oficial desde: {EXCEL_PATH.name}...")
-    with open(EXCEL_PATH, "rb") as f:
-        file_md5 = hashlib.md5(f.read()).hexdigest().upper()
-    print(f"MD5 del archivo Excel: {file_md5}")
+    try:
+        import openpyxl
+    except ImportError:
+        print("ERROR: Se requiere 'openpyxl' para leer el archivo Excel. Instálelo con: pip install openpyxl")
+        db.close()
+        return False
 
-    # Asegurar creación de tablas
-    Base.metadata.create_all(bind=engine)
-
-    wb = openpyxl.load_workbook(EXCEL_PATH, read_only=True, data_only=True)
+    print(f"Cargando desde Excel: {excel_path}...")
+    wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
     ws = wb.active
 
+    count = 0
     deps_dict = {}
     dists_dict = {}
     cius_dict = {}
     barrios_list = []
 
-    count = 0
     for row in ws.iter_rows(values_only=True):
         count += 1
         if count < 16:
             continue
-        # row: [None, c_dep, d_dep, c_dist, d_dist, c_ciu, d_ciu, c_bar, d_bar]
         if len(row) >= 7 and row[1] is not None:
             c_dep = int(row[1])
             d_dep = str(row[2]).strip()
@@ -50,88 +142,41 @@ def seed_catalogo_geografico():
             d_dist = str(row[4]).strip()
             c_ciu = int(row[5])
             d_ciu = str(row[6]).strip()
-            
             c_bar = int(row[7]) if len(row) >= 8 and row[7] is not None else None
             d_bar = str(row[8]).strip() if len(row) >= 9 and row[8] else ""
 
             if c_dep not in deps_dict:
                 deps_dict[c_dep] = d_dep
-
             if c_dist not in dists_dict:
                 dists_dict[c_dist] = (c_dep, d_dist)
-
             if c_ciu not in cius_dict:
                 cius_dict[c_ciu] = (c_dist, c_dep, d_ciu)
-
             if c_bar is not None and d_bar:
-                barrios_list.append((c_dep, c_dist, c_ciu, c_bar, d_bar))
+                barrios_list.append((c_bar, d_bar, c_ciu, c_dist, c_dep))
 
-    wb.close()
-    print(f"Procesadas {count} filas del Excel.")
-    print(f"Detectados: {len(deps_dict)} Departamentos, {len(dists_dict)} Distritos, {len(cius_dict)} Ciudades, {len(barrios_list)} Barrios.")
+    for c_dep, d_dep in deps_dict.items():
+        if not db.query(GeoDepartamento).filter(GeoDepartamento.id == c_dep).first():
+            db.add(GeoDepartamento(id=c_dep, nombre=d_dep))
+    db.commit()
 
-    db = SessionLocal()
-    try:
-        # 1. Limpiar o sincronizar Departamentos
-        print("Sincronizando Departamentos...")
-        for c_dep, d_dep in deps_dict.items():
-            dep = db.query(GeoDepartamento).filter(GeoDepartamento.id == c_dep).first()
-            if not dep:
-                db.add(GeoDepartamento(id=c_dep, nombre=d_dep))
-            else:
-                dep.nombre = d_dep
-        db.commit()
+    for c_dist, (c_dep, d_dist) in dists_dict.items():
+        if not db.query(GeoDistrito).filter(GeoDistrito.id == c_dist).first():
+            db.add(GeoDistrito(id=c_dist, departamento_id=c_dep, nombre=d_dist))
+    db.commit()
 
-        # 2. Sincronizar Distritos
-        print("Sincronizando Distritos...")
-        for c_dist, (c_dep, d_dist) in dists_dict.items():
-            dist = db.query(GeoDistrito).filter(GeoDistrito.id == c_dist).first()
-            if not dist:
-                db.add(GeoDistrito(id=c_dist, departamento_id=c_dep, nombre=d_dist))
-            else:
-                dist.nombre = d_dist
-                dist.departamento_id = c_dep
-        db.commit()
+    for c_ciu, (c_dist, c_dep, d_ciu) in cius_dict.items():
+        if not db.query(GeoCiudad).filter(GeoCiudad.id == c_ciu).first():
+            db.add(GeoCiudad(id=c_ciu, distrito_id=c_dist, departamento_id=c_dep, nombre=d_ciu))
+    db.commit()
 
-        # 3. Sincronizar Ciudades (batch)
-        print("Sincronizando Ciudades / Localidades...")
-        existing_ciu_ids = {c.id for c in db.query(GeoCiudad.id).all()}
-        new_cius = []
-        for c_ciu, (c_dist, c_dep, d_ciu) in cius_dict.items():
-            if c_ciu not in existing_ciu_ids:
-                new_cius.append(GeoCiudad(id=c_ciu, distrito_id=c_dist, departamento_id=c_dep, nombre=d_ciu))
-            else:
-                # Actualizar si cambió
-                pass
-        if new_cius:
-            db.bulk_save_objects(new_cius)
-            db.commit()
+    for c_bar, d_bar, c_ciu, c_dist, c_dep in barrios_list:
+        db.add(GeoBarrio(codigo_barrio=c_bar, nombre=d_bar, ciudad_id=c_ciu, distrito_id=c_dist, departamento_id=c_dep))
+    db.commit()
 
-        # 4. Sincronizar Barrios
-        print("Sincronizando Barrios...")
-        existing_barrios = db.query(GeoBarrio.id).count()
-        if existing_barrios == 0:
-            barrio_objs = [
-                GeoBarrio(
-                    codigo_barrio=c_bar,
-                    nombre=d_bar,
-                    ciudad_id=c_ciu,
-                    distrito_id=c_dist,
-                    departamento_id=c_dep
-                )
-                for c_dep, c_dist, c_ciu, c_bar, d_bar in barrios_list
-            ]
-            db.bulk_save_objects(barrio_objs)
-            db.commit()
+    print(f"Carga desde Excel finalizada con éxito: {len(deps_dict)} Departamentos, {len(dists_dict)} Distritos, {len(cius_dict)} Ciudades.")
+    db.close()
+    return True
 
-        print("¡Sincronización geográfica oficial SIFEN finalizada exitosamente!")
-        return True
-    except Exception as e:
-        db.rollback()
-        print(f"Error al sincronizar datos geográficos: {e}")
-        raise e
-    finally:
-        db.close()
 
 if __name__ == "__main__":
     seed_catalogo_geografico()

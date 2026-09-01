@@ -17,3 +17,4 @@ email-validator>=2.0
 qrcode[pil]>=7.4
 google-auth>=2.27
 requests>=2.31
+openpyxl>=3.1

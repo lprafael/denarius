@@ -46,6 +46,12 @@ try:
             conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_desc_item INTEGER DEFAULT 0;"))
             conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_porc_des_it FLOAT DEFAULT 0.0;"))
             conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_inf_item VARCHAR(255) DEFAULT '';"))
+
+            # GeoBarrio
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS codigo_barrio INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS ciudad_id INTEGER;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS distrito_id INTEGER;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS departamento_id INTEGER;"))
 except Exception as e:
     print(f"[DB Migration Warning] {e}")
 

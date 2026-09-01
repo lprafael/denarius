@@ -25,9 +25,22 @@ POSSIBLE_EXCEL_PATHS = [
 ]
 
 
+from sqlalchemy import text
+
 def seed_catalogo_geografico() -> bool:
     print("Iniciando carga del Catálogo Geográfico Oficial SIFEN (DNIT Noviembre 2025)...")
     Base.metadata.create_all(bind=engine)
+    
+    # Migrar columnas de geo_barrio si la tabla ya existía con esquema anterior
+    try:
+        with engine.begin() as conn:
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS codigo_barrio INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS ciudad_id INTEGER;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS distrito_id INTEGER;"))
+            conn.execute(text("ALTER TABLE geo_barrio ADD COLUMN IF NOT EXISTS departamento_id INTEGER;"))
+    except Exception as e:
+        print(f"Nota de migración geo_barrio: {e}")
+
     db = SessionLocal()
 
     # Si ya existen departamentos y ciudades, omitir o verificar

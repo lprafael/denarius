@@ -46,6 +46,7 @@ import { InventarioView } from "./views/InventarioView";
 import { ComprasView } from "./views/ComprasView";
 import { UsuariosView } from "./views/UsuariosView";
 import { ClientesView } from "./views/ClientesView";
+import { LotesView } from "./views/LotesView";
 
 
 export function App() {
@@ -495,6 +496,7 @@ export function App() {
           <button className={activeTab === "inventario" ? "active" : ""} onClick={() => setActiveTab("inventario")}>📦 Productos/Servicios</button>
           <button className={activeTab === "clientes" ? "active" : ""} onClick={() => setActiveTab("clientes")}>👥 Clientes</button>
           <button className={activeTab === "compras" ? "active" : ""} onClick={() => setActiveTab("compras")}>📥 Compras SIFEN</button>
+          <button className={activeTab === "lotes" ? "active" : ""} onClick={() => setActiveTab("lotes")}>📦 Lotes SIFEN</button>
           <button className={activeTab === "presupuestos" ? "active" : ""} onClick={() => setActiveTab("presupuestos")}>Presupuestos</button>
           {isCompanyAdmin && (
             <button className={activeTab === "usuarios" ? "active" : ""} onClick={() => setActiveTab("usuarios")}>Usuarios</button>
@@ -697,6 +699,12 @@ export function App() {
             {activeTab === "compras" && (
                 <section>
                     <ComprasView compras={compras} refresh={refresh} />
+                </section>
+            )}
+
+            {activeTab === "lotes" && (
+                <section>
+                    <LotesView />
                 </section>
             )}
 

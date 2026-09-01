@@ -13,8 +13,13 @@ from app.security import (
     hash_password, iniciar_sesion, registrar_audit,
     crear_access_token, verificar_password, verificar_equipo,
 )
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+try:
+    from google.oauth2 import id_token
+    from google.auth.transport import requests as google_requests
+except ImportError:
+    id_token = None
+    google_requests = None
+
 from app.config import settings
 from app.schemas import (
     EmpresaCreate, EmpresaOut, LoginIn, LoginOut, 

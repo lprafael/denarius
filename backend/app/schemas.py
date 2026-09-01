@@ -167,14 +167,18 @@ class LineaIn(BaseModel):
     d_cant_pro_ser: float = Field(gt=0)
     d_p_uni_pro_ser: int = Field(ge=0)
     d_tasa_iva: int = Field(default=10, description="5, 10 o 0 (exento)")
+    i_afec_iva: int = Field(default=1, description="1=Gravado, 2=Exonerado, 3=Exento, 4=Gravado parcial")
     c_uni_med: int = 77
     d_des_uni_med: str = "UNI"
+    d_desc_item: int = 0
+    d_porc_des_it: float = 0.0
+    d_inf_item: Optional[str] = ""
 
 
 class FacturaCreate(BaseModel):
     d_fe_emi_de: Optional[datetime] = None
     i_tip_emi: int = 1
-    i_ti_de: int = 1
+    i_ti_de: int = 1  # 1=Factura, 2=Exportación, 4=Autofactura, 5=NC, 6=ND, 7=Remisión
     receptor_ruc: str
     receptor_dv: str
     receptor_nombre: str
@@ -190,7 +194,25 @@ class FacturaCreate(BaseModel):
     d_cod_cliente: str = ""
     i_cond_ope: int = 1
     d_plazo_cre: str = ""
+
+    # Documentos Asociados (para Notas de Crédito/Débito)
+    cdc_asociado: Optional[str] = ""
+    tipo_doc_asociado: Optional[int] = 1  # 1=Electrónico, 2=Impreso
+    motivo_emision_nc: Optional[int] = 1  # 1=Devolución, 2=Descuento, etc.
+    timbrado_doc_asociado: Optional[str] = ""
+    numero_doc_asociado: Optional[str] = ""
+    fecha_doc_asociado: Optional[str] = ""
+
+    # Multidivisa y Condiciones
+    moneda: Optional[str] = "PYG"
+    tipo_cambio: Optional[float] = 1.0
+    condicion_tipo_cambio: Optional[int] = 1
+    descuento_global: Optional[int] = 0
+    anticipo_global: Optional[int] = 0
+    redondeo: Optional[int] = 0
+
     lineas: list[LineaIn]
+
     # Control de firma y envío
     firmar: bool = Field(False, description="Si True, firma el XML con el certificado activo de la empresa")
     enviar_sifen: bool = Field(False, description="Si True, envía el DE a SIFEN automáticamente post-firma")
@@ -201,6 +223,7 @@ class FacturaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     empresa_id: int
+    i_ti_de: int = 1
     cdc: str
     numero_documento: int
     d_fe_emi_de: datetime
@@ -211,6 +234,9 @@ class FacturaOut(BaseModel):
     estado_envio: str
     sifen_protocolo: str
     cancelado: bool
+    lote_id: Optional[int] = None
+    cdc_asociado: Optional[str] = ""
+    moneda: Optional[str] = "PYG"
     created_at: datetime
 
 

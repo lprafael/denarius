@@ -1,0 +1,678 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Manual de Usuario — Facturación Electrónica SIFEN Paraguay</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --primary-light: #eff6ff;
+      --accent: #0284c7;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --bg-page: #f8fafc;
+      --bg-card: #ffffff;
+      --border: #e2e8f0;
+      --border-focus: #94a3b8;
+      --success: #16a34a;
+      --success-bg: #dcfce7;
+      --warning: #d97706;
+      --warning-bg: #fef3c7;
+      --danger: #dc2626;
+      --danger-bg: #fee2e2;
+      --code-bg: #1e293b;
+      --code-text: #f8fafc;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      background-color: var(--bg-page);
+      color: var(--text-main);
+      line-height: 1.65;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Layout */
+    .app-container {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 300px;
+      background-color: #ffffff;
+      border-right: 1px solid var(--border);
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      overflow-y: auto;
+      padding: 1.5rem 1rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 1.25rem;
+    }
+
+    .brand-icon {
+      width: 40px;
+      height: 40px;
+      background: linear-gradient(135deg, #2563eb, #0284c7);
+      color: white;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 800;
+      font-size: 20px;
+      box-shadow: 0 4px 10px rgba(37, 99, 235, 0.25);
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      color: #0f172a;
+    }
+
+    .brand-subtitle {
+      font-size: 11px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .nav-list {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .nav-item a {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 12px;
+      color: #475569;
+      text-decoration: none;
+      font-size: 13.5px;
+      font-weight: 500;
+      border-radius: 6px;
+      transition: all 0.15s ease;
+    }
+
+    .nav-item a:hover {
+      background-color: #f1f5f9;
+      color: var(--primary);
+    }
+
+    .nav-item a.active {
+      background-color: var(--primary-light);
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .nav-category {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: #94a3b8;
+      letter-spacing: 0.75px;
+      padding: 1rem 0.75rem 0.4rem 0.75rem;
+    }
+
+    /* Content Area */
+    .main-content {
+      flex: 1;
+      padding: 3rem 4rem;
+      max-width: 1050px;
+    }
+
+    /* Header & Hero */
+    .hero-header {
+      background: linear-gradient(135deg, #1e293b, #0f172a);
+      color: white;
+      padding: 2.5rem 3rem;
+      border-radius: 16px;
+      margin-bottom: 3rem;
+      box-shadow: 0 10px 25px -5px rgba(15, 23, 42, 0.15);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero-badge {
+      display: inline-block;
+      background: rgba(37, 99, 235, 0.3);
+      border: 1px solid rgba(147, 197, 253, 0.3);
+      color: #93c5fd;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+
+    .hero-title {
+      font-size: 32px;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+    }
+
+    .hero-desc {
+      color: #cbd5e1;
+      font-size: 15px;
+      max-width: 650px;
+    }
+
+    /* Sections */
+    section {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 2.25rem 2.5rem;
+      margin-bottom: 2.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+    }
+
+    h2 {
+      font-size: 22px;
+      font-weight: 700;
+      color: #0f172a;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      border-bottom: 2px solid #f1f5f9;
+      padding-bottom: 0.75rem;
+    }
+
+    h3 {
+      font-size: 17px;
+      font-weight: 600;
+      color: #1e293b;
+      margin: 1.5rem 0 0.75rem 0;
+    }
+
+    p {
+      margin-bottom: 1rem;
+      color: #334155;
+      font-size: 14.5px;
+    }
+
+    ul, ol {
+      margin: 0.75rem 0 1.25rem 1.5rem;
+      color: #334155;
+      font-size: 14.5px;
+    }
+
+    li {
+      margin-bottom: 0.4rem;
+    }
+
+    /* Alert Boxes */
+    .alert {
+      padding: 1rem 1.25rem;
+      border-radius: 8px;
+      margin: 1.25rem 0;
+      font-size: 14px;
+      display: flex;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .alert-info {
+      background-color: #eff6ff;
+      border-left: 4px solid var(--primary);
+      color: #1e40af;
+    }
+
+    .alert-warning {
+      background-color: var(--warning-bg);
+      border-left: 4px solid var(--warning);
+      color: #92400e;
+    }
+
+    .alert-success {
+      background-color: var(--success-bg);
+      border-left: 4px solid var(--success);
+      color: #166534;
+    }
+
+    /* Tables */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1.5rem 0;
+      font-size: 13.5px;
+    }
+
+    th {
+      background-color: #f8fafc;
+      color: #475569;
+      text-align: left;
+      font-weight: 600;
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+    }
+
+    td {
+      padding: 10px 14px;
+      border: 1px solid var(--border);
+      color: #334155;
+    }
+
+    tr:nth-child(even) td {
+      background-color: #fcfdfe;
+    }
+
+    /* Code Blocks */
+    pre, code {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    code {
+      background-color: #f1f5f9;
+      color: #2563eb;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+
+    pre {
+      background-color: var(--code-bg);
+      color: var(--code-text);
+      padding: 1.25rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 12.5px;
+      margin: 1rem 0;
+      line-height: 1.5;
+    }
+
+    /* Step Cards */
+    .step-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 1.25rem;
+      margin: 1.5rem 0;
+    }
+
+    .step-card {
+      background: #f8fafc;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem;
+      position: relative;
+    }
+
+    .step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background-color: var(--primary);
+      color: white;
+      font-weight: 700;
+      font-size: 13px;
+      border-radius: 50%;
+      margin-bottom: 10px;
+    }
+
+    .step-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-bottom: 6px;
+    }
+
+    /* Print styling */
+    @media print {
+      .sidebar { display: none; }
+      .main-content { padding: 0; max-width: 100%; }
+      section { box-shadow: none; border: 1px solid #ccc; page-break-inside: avoid; }
+      body { background: #fff; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app-container">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-icon">D</div>
+      <div>
+        <div class="brand-title">Denarius SIFEN</div>
+        <div class="brand-subtitle">Manual de Usuario v150</div>
+      </div>
+    </div>
+
+    <ul class="nav-list">
+      <li class="nav-category">Primeros Pasos</li>
+      <li class="nav-item"><a href="#intro" class="active">📌 1. Introducción y Conceptos</a></li>
+      <li class="nav-item"><a href="#config">🔑 2. Configuración y Certificado</a></li>
+
+      <li class="nav-category">Emisión de Documentos</li>
+      <li class="nav-item"><a href="#factura">📄 3.1 Factura Electrónica (Tipo 1)</a></li>
+      <li class="nav-item"><a href="#nc-nd">🔄 3.2 Notas de Crédito y Débito</a></li>
+      <li class="nav-item"><a href="#autofactura">👤 3.3 Autofactura (Tipo 4)</a></li>
+      <li class="nav-item"><a href="#export-remision">🚢 3.4 Exportación y Remisión</a></li>
+
+      <li class="nav-category">Operaciones Avanzadas</li>
+      <li class="nav-item"><a href="#geografia">📍 4. Catálogo Geográfico 2025</a></li>
+      <li class="nav-item"><a href="#totales-iva">🧮 5. Impuestos, Descuentos e IVA</a></li>
+      <li class="nav-item"><a href="#lotes">📦 6. Monitor de Lotes Asíncronos</a></li>
+      <li class="nav-item"><a href="#kude-qr">📱 7. KuDE, QR y Archivos XML</a></li>
+      <li class="nav-item"><a href="#eventos">⚠️ 8. Eventos e Inutilización</a></li>
+      <li class="nav-item"><a href="#errores">🛠️ 9. Preguntas y Errores SIFEN</a></li>
+    </ul>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="main-content">
+    <!-- Hero Banner -->
+    <div class="hero-header">
+      <span class="hero-badge">SIFEN / e-Kuatia · DNIT Paraguay</span>
+      <h1 class="hero-title">Manual de Usuario y Operaciones</h1>
+      <p class="hero-desc">
+        Guía integral para la emisión, firma digital, transmisión asíncrona y gestión de Documentos Electrónicos conforme al Manual Técnico v150 y resoluciones oficiales.
+      </p>
+    </div>
+
+    <!-- 1. Introducción -->
+    <section id="intro">
+      <h2>📌 1. Introducción y Conceptos Clave</h2>
+      <p>
+        El sistema <strong>Denarius</strong> permite emitir y gestionar Documentos Electrónicos con plena validez jurídica y fiscal ante la <strong>Dirección Nacional de Ingresos Tributarios (DNIT / SET)</strong> de Paraguay.
+      </p>
+
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-number">1</div>
+          <div class="step-title">CDC (44 Dígitos)</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+            Código identificador único de cada DE en todo el país. Contiene tipo de doc, RUC, timbrado, número, fecha, tipo de emisión y código de seguridad con dígito verificador.
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">2</div>
+          <div class="step-title">Firma Digital (XMLDSig)</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+            Firma criptográfica RSA-SHA256 con certificado PKCS#12 (.p12) provisto por una Prestadora de Servicios de Confianza (PSC) habilitada en Paraguay.
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-number">3</div>
+          <div class="step-title">KuDE y Código QR</div>
+          <p style="font-size: 13px; color: var(--text-muted); margin:0;">
+            Representación gráfica imprimible en formato A4 o ticket térmico de 80mm que incluye el Código QR oficial para escaneo y validación ciudadana.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- 2. Configuración -->
+    <section id="config">
+      <h2>🔑 2. Configuración Inicial y Certificado Digital</h2>
+      <p>
+        Antes de emitir el primer documento, complete los datos fiscales en la pestaña <strong>Configuración (🔑)</strong>:
+      </p>
+
+      <ol>
+        <li><strong>RUC y Timbrado:</strong> Ingrese el RUC con DV, Razón Social, Número de Timbrado Electrónico, Establecimiento (ej: <code>001</code>) y Punto de Expedición (ej: <code>001</code>).</li>
+        <li><strong>Código de Seguridad del Contribuyente (CSC):</strong> Genere su CSC en el sistema Marangatú e ingrese el <strong>ID CSC</strong> (ej: <code>1</code>) y el <strong>CSC Secreto</strong> (32 caracteres).</li>
+        <li><strong>Certificado Digital PKCS#12:</strong> Suba su archivo con extensión <code>.p12</code> o <code>.pfx</code> e ingrese la contraseña asignada. El sistema validará la vigencia y titularidad.</li>
+      </ol>
+
+      <div class="alert alert-info">
+        <span>💡 <strong>Ambientes:</strong> El sistema permite operar en ambiente de <strong>Test (Homologación)</strong> para capacitación de operadores y <strong>Producción</strong> para facturación fiscal real.</span>
+      </div>
+    </section>
+
+    <!-- 3.1 Factura Electrónica -->
+    <section id="factura">
+      <h2>📄 3.1 Factura Electrónica (Tipo 1)</h2>
+      <p>Para emitir una Factura Electrónica estándar diríjase a la pestaña <strong>Emitir</strong>:</p>
+
+      <div class="step-grid">
+        <div class="step-card">
+          <div class="step-title">1. Cliente / Receptor</div>
+          <p style="font-size: 13px; color: #475569;">
+            Ingrese el RUC (sin DV). El sistema calculará el DV automáticamente y consultará la base de datos de la DNIT / SIFEN para autocompletar la Razón Social y datos fiscales.
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-title">2. Ubicación Oficial</div>
+          <p style="font-size: 13px; color: #475569;">
+            Seleccione Departamento, Distrito y Ciudad en los selectores en cascada oficiales (Noviembre 2025) para evitar el error de rechazo <code>0160</code>.
+          </p>
+        </div>
+        <div class="step-card">
+          <div class="step-title">3. Ítems e Impuestos</div>
+          <p style="font-size: 13px; color: #475569;">
+            Seleccione artículos de su catálogo o ingrese descripción libre, cantidad, precio unitario con IVA incluido (10%, 5% o Exento) y descuentos.
+          </p>
+        </div>
+      </div>
+
+      <div class="alert alert-success">
+        <span>✅ Al hacer clic en <strong>🔐 Firmar y Emitir</strong>, el sistema generará el XML canónico, calculará el CDC, firmará con RSA-SHA256 y registrará el documento para su consulta y envío.</span>
+      </div>
+    </section>
+
+    <!-- 3.2 Notas de Crédito y Débito -->
+    <section id="nc-nd">
+      <h2>🔄 3.2 Notas de Crédito y Débito con CDC Asociado</h2>
+      <p>
+        Las <strong>Notas de Crédito (Tipo 5)</strong> y <strong>Notas de Débito (Tipo 6)</strong> requieren obligatoriamente referenciar la factura original afectada:
+      </p>
+
+      <ol>
+        <li>Seleccione en el selector superior: <code>🔄 Nota de Crédito Electrónica</code> o <code>➕ Nota de Débito Electrónica</code>.</li>
+        <li>Aparecerá el panel <strong>🔗 Documento Asociado / Referenciado</strong>.</li>
+        <li>Ingrese el <strong>CDC de 44 dígitos</strong> de la factura afectada.</li>
+        <li>Seleccione el <strong>Motivo de Emisión</strong>:
+          <ul>
+            <li><code>1 - Devolución</code>: Restitución física o anulación de mercadería.</li>
+            <li><code>2 - Descuento</code>: Bonificación o descuento comercial posterior.</li>
+            <li><code>3 - Bonificación</code>: Descuento por pronto pago u ofertas.</li>
+            <li><code>4 - Crédito Incobrable</code>: Ajustes por incobrabilidad.</li>
+            <li><code>7 - Anulación</code>: Anulación total del documento original.</li>
+          </ul>
+        </li>
+        <li>Ingrese los montos y presione <strong>Firmar y Emitir</strong>.</li>
+      </ol>
+    </section>
+
+    <!-- 3.3 Autofactura -->
+    <section id="autofactura">
+      <h2>👤 3.3 Autofactura Electrónica (Tipo 4)</h2>
+      <p>
+        Se utiliza para adquisiciones de bienes o servicios a personas físicas no contribuyentes (productores agropecuarios, venta ocasional):
+      </p>
+      <ul>
+        <li>Seleccione <code>👤 Autofactura Electrónica</code> en el tipo de documento.</li>
+        <li>Ingrese Cédula y datos del vendedor particular en el grupo <code>gCamAE</code>.</li>
+        <li>El sistema liquidará automáticamente las retenciones de renta e IVA correspondientes.</li>
+      </ul>
+    </section>
+
+    <!-- 3.4 Exportación y Remisión -->
+    <section id="export-remision">
+      <h2>🚢 3.4 Facturas de Exportación y Notas de Remisión</h2>
+      <ul>
+        <li><strong>Factura de Exportación (Tipo 2):</strong> Permite clientes internacionales (código de país no <code>PRY</code>), condición de entrega (Incoterms) y datos de transporte aduanero.</li>
+        <li><strong>Nota de Remisión (Tipo 7):</strong> Control de traslado de mercaderías con fechas de inicio/fin de viaje, chofer, chapa del vehículo y motivo de traslado.</li>
+      </ul>
+    </section>
+
+    <!-- 4. Catálogo Geográfico -->
+    <section id="geografia">
+      <h2>📍 4. Catálogo Geográfico Oficial SIFEN (Noviembre 2025)</h2>
+      <p>
+        La DNIT exige que los códigos geográficos coincidan estrictamente con su nomenclador nacional actualizado (Checksum MD5 oficial: <code>80733BB1C4834C9C2ABBBF3C194D1566</code>).
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Nivel</th>
+            <th>Cantidad</th>
+            <th>Campo SIFEN</th>
+            <th>Ejemplo</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Departamento</strong></td>
+            <td>18 Oficiales</td>
+            <td><code>cDepRec</code> / <code>dDesDepRec</code></td>
+            <td><code>1</code> — CAPITAL, <code>11</code> — CENTRAL</td>
+          </tr>
+          <tr>
+            <td><strong>Distrito</strong></td>
+            <td>272 Distritos</td>
+            <td><code>cDisRec</code> / <code>dDesDisRec</code></td>
+            <td><code>1</code> — ASUNCION (DISTRITO)</td>
+          </tr>
+          <tr>
+            <td><strong>Ciudad / Localidad</strong></td>
+            <td>6.766 Localidades</td>
+            <td><code>cCiuRec</code> / <code>dDesCiuRec</code></td>
+            <td><code>1</code> — ASUNCION (DISTRITO)</td>
+          </tr>
+          <tr>
+            <td><strong>Barrio</strong></td>
+            <td>1.104 Barrios</td>
+            <td><code>cBarRec</code> / <code>dDesBarRec</code></td>
+            <td>Barrios de Asunción y principales ciudades</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+
+    <!-- 5. Totales e IVA -->
+    <section id="totales-iva">
+      <h2>🧮 5. Impuestos, Descuentos, Redondeo y Multidivisa</h2>
+      
+      <h3>Fórmulas Oficiales de Liquidación (Precios con IVA incluido)</h3>
+      <pre><code>Base Gravada (10%) = round(Precio Neto * 100 / 110)
+Liquidación IVA (10%) = Precio Neto - Base Gravada
+
+Base Gravada (5%) = round(Precio Neto * 100 / 105)
+Liquidación IVA (5%) = Precio Neto - Base Gravada</code></pre>
+
+      <h3>Monedas Soportadas</h3>
+      <p>El sistema permite facturar en <strong>Guaraníes (PYG)</strong>, <strong>Dólares (USD)</strong>, <strong>Reales (BRL)</strong>, <strong>Pesos Argentinos (ARS)</strong> y <strong>Euros (EUR)</strong> indicando la cotización oficial del día (<code>dTiCam</code>).</p>
+    </section>
+
+    <!-- 6. Monitor de Lotes -->
+    <section id="lotes">
+      <h2>📦 6. Monitor de Lotes Asíncronos SIFEN</h2>
+      <p>
+        Conforme a la guía de <strong>Recomendaciones y Mejores Prácticas de SIFEN (Octubre 2024)</strong>, la transmisión masiva de documentos debe realizarse en lotes asíncronos para evitar bloqueos temporales de RUC:
+      </p>
+
+      <ol>
+        <li>Vaya a la pestaña <strong>📦 Lotes SIFEN</strong>.</li>
+        <li>Haga clic en <strong>➕ Enviar Nuevo Lote</strong> y seleccione hasta <strong>50 facturas</strong> (mismo tipo de documento).</li>
+        <li>El sistema empaquetará los XMLs en un archivo <code>.zip</code> codificado en Base64 y lo transmitirá a <code>recibe-lote.wsdl</code>.</li>
+        <li>Recibirá el número de <strong>Protocolo de Consulta</strong> (código <code>0300</code>).</li>
+        <li>Tras aguardar <strong>&ge; 10 minutos</strong>, presione el botón <strong>🔍 SIFEN</strong> para consultar la aprobación de cada documento.</li>
+      </ol>
+
+      <div class="alert alert-warning">
+        <span>⚠️ <strong>Regla SIFEN:</strong> No realice consultas de lote en intervalos menores a 10 minutos para evitar penalizaciones por saturación en los servidores de la DNIT.</span>
+      </div>
+    </section>
+
+    <!-- 7. KuDE y QR -->
+    <section id="kude-qr">
+      <h2>📱 7. KuDE, Código QR y Archivos XML</h2>
+      <p>
+        En la lista de facturas emitidas, puede acceder a los siguientes formatos oficiales:
+      </p>
+      <ul>
+        <li><strong>PDF (KuDE):</strong> Representación gráfica oficial lista para imprimir o enviar por WhatsApp/Email al cliente, con logotipo de su empresa y desglose de IVA 5% y 10%.</li>
+        <li><strong>Código QR:</strong> Escaneable desde cualquier smartphone para consultar la autenticidad del documento directamente en el portal de la SET (<code>ekuatia.set.gov.py</code>).</li>
+        <li><strong>Descargar XML:</strong> Archivo firmado digitalmente con valor probatorio legal ante auditorías y fiscalizaciones.</li>
+      </ul>
+    </section>
+
+    <!-- 8. Eventos -->
+    <section id="eventos">
+      <h2>⚠️ 8. Eventos e Inutilización de Numeración</h2>
+      
+      <h3>Eventos de Documentos Aprobados</h3>
+      <ul>
+        <li><strong>Cancelación (<code>gEvCan</code>):</strong> Permite anular una factura con error dentro del plazo reglamentario.</li>
+        <li><strong>Conformidad / Disconformidad:</strong> Registro de aceptación o rechazo de mercadería por parte del comprador.</li>
+      </ul>
+
+      <h3>Inutilización de Rangos (<code>rEnviInu</code>)</h3>
+      <p>
+        Si se omitió o dañó un rango correlativo de numeración (ej: saltó del 0000010 al 0000020), el administrador puede inutilizar el rango no utilizado para mantener la correlatividad fiscal intacta.
+      </p>
+    </section>
+
+    <!-- 9. Errores Comunes -->
+    <section id="errores">
+      <h2>🛠️ 9. Preguntas Frecuentes y Errores SIFEN</h2>
+      
+      <table>
+        <thead>
+          <tr>
+            <th>Código / Mensaje</th>
+            <th>Causa</th>
+            <th>Solución en Denarius</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>0160</code> — Código de ciudad inválido</td>
+            <td>Se ingresó una ciudad o distrito que no corresponde al departamento.</td>
+            <td>Use los selectores en cascada oficiales actualizados a Noviembre 2025.</td>
+          </tr>
+          <tr>
+            <td><code>0100</code> — Firma digital no válida</td>
+            <td>Certificado expirado o clave incorrecta.</td>
+            <td>Renueve el archivo <code>.p12</code> en Configuración.</td>
+          </tr>
+          <tr>
+            <td><code>0301</code> — Lote no encolado</td>
+            <td>Se mezclaron tipos de documento o el lote superó 50 DEs.</td>
+            <td>El monitor de lotes valida automáticamente grupos homogéneos de hasta 50 DEs.</td>
+          </tr>
+          <tr>
+            <td><code>0361</code> — Lote en procesamiento</td>
+            <td>SIFEN aún está validando los documentos del lote.</td>
+            <td>Espere al menos 10 minutos antes de volver a presionar <strong>🔍 SIFEN</strong>.</td>
+          </tr>
+        </tbody>
+      </table>
+    </section>
+  </main>
+</div>
+
+</body>
+</html>

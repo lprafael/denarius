@@ -588,3 +588,87 @@ export async function listAuditoria(empresaId?: number): Promise<AuditLogOut[]> 
     if (!r.ok) throw new Error(await r.text());
     return r.json();
 }
+
+// ---------------------------------------------------------------------------
+// Geografía Oficial SIFEN
+// ---------------------------------------------------------------------------
+export type GeoDepartamento = { id: number; nombre: string };
+export type GeoDistrito = { id: number; departamento_id: number; nombre: string };
+export type GeoCiudad = { id: number; distrito_id: number; departamento_id: number; nombre: string };
+export type GeoLocalidad = { c_dep: number; d_des_dep: string; c_dist: number; d_des_dist: string; c_ciu: number; d_des_ciu: string };
+
+export async function getGeoDepartamentos(): Promise<GeoDepartamento[]> {
+  const r = await fetch(`${API}/geo/departamentos`, { headers: { ...authHeaders() } });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getGeoDistritos(depId?: number): Promise<GeoDistrito[]> {
+  const url = depId ? `${API}/geo/distritos?departamento_id=${depId}` : `${API}/geo/distritos`;
+  const r = await fetch(url, { headers: { ...authHeaders() } });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function getGeoCiudades(distId?: number, depId?: number, q?: string): Promise<GeoCiudad[]> {
+  const p = new URLSearchParams();
+  if (distId) p.append("distrito_id", distId.toString());
+  if (depId) p.append("departamento_id", depId.toString());
+  if (q) p.append("q", q);
+  const r = await fetch(`${API}/geo/ciudades?${p.toString()}`, { headers: { ...authHeaders() } });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+export async function buscarLocalidades(q: string): Promise<GeoLocalidad[]> {
+  const r = await fetch(`${API}/geo/buscar?q=${encodeURIComponent(q)}`, { headers: { ...authHeaders() } });
+  if (!r.ok) return [];
+  return r.json();
+}
+
+// ---------------------------------------------------------------------------
+// Lotes Asíncronos SIFEN
+// ---------------------------------------------------------------------------
+export type LoteDE = {
+  id: number;
+  empresa_id: number;
+  i_ti_de: number;
+  d_prot_cons_lote: string;
+  cantidad_de: number;
+  estado: string;
+  sifen_cod_res: string;
+  sifen_msg_res: string;
+  created_at: string;
+  consultado_at?: string;
+};
+
+export async function listLotes(): Promise<LoteDE[]> {
+  const r = await fetch(`${API}/lotes`, { headers: { ...authHeaders() } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function getLoteDetalle(loteId: number): Promise<{ lote: LoteDE; facturas: any[] }> {
+  const r = await fetch(`${API}/lotes/${loteId}`, { headers: { ...authHeaders() } });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function enviarLoteAsincrono(facturaIds: number[], certPassword?: string): Promise<any> {
+  const r = await fetch(`${API}/lotes/enviar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...authHeaders() },
+    body: JSON.stringify({ factura_ids: facturaIds, cert_password: certPassword || "" }),
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}
+
+export async function consultarLoteSifen(loteId: number): Promise<any> {
+  const r = await fetch(`${API}/lotes/${loteId}/consultar`, {
+    method: "POST",
+    headers: { ...authHeaders() },
+  });
+  if (!r.ok) throw new Error(await r.text());
+  return r.json();
+}

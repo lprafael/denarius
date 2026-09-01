@@ -37,17 +37,29 @@ def crear(
     if not emisor:
         raise HTTPException(400, "No hay emisor configurado")
 
-    xml_inutilizacion = f"""<rInutDE>
-      <dTipInu>{body.i_ti_de}</dTipInu>
-      <dEst>{body.d_est}</dEst>
-      <dPunExp>{body.d_pun_exp}</dPunExp>
-      <dNumIni>{body.d_num_ini}</dNumIni>
-      <dNumFin>{body.d_num_fin}</dNumFin>
-      <dMotInu>{body.motivo}</dMotInu>
-    </rInutDE>"""
+    from app.models import Certificado
+    cert = db.query(Certificado).filter(
+        Certificado.empresa_id == admin.empresa_id, Certificado.activo == True
+    ).order_by(Certificado.id.desc()).first()
 
-    from app.sifen.sifen_client import enviar_inutilizacion
-    resultado = enviar_inutilizacion(xml_inutilizacion)
+    ruc_parts = emisor.ruc_con_dv.split("-")
+    ruc_em = ruc_parts[0]
+    dv_em = ruc_parts[1] if len(ruc_parts) > 1 else "0"
+
+    from app.sifen.sifen_client import enviar_inutilizacion_firmada
+    resultado = enviar_inutilizacion_firmada(
+        num_timbrado=emisor.num_tim,
+        d_est=body.d_est,
+        d_pun_exp=body.d_pun_exp,
+        d_num_ini=body.d_num_ini,
+        d_num_fin=body.d_num_fin,
+        i_ti_de=body.i_ti_de,
+        motivo=body.motivo,
+        ruc_emisor=ruc_em,
+        dv_emisor=dv_em,
+        p12_path=cert.ruta_archivo if cert else None,
+        p12_password=cert.contrasena_enc if cert else "",
+    )
 
     inu = Inutilizacion(
         empresa_id=admin.empresa_id,
@@ -58,8 +70,8 @@ def crear(
         d_num_ini=body.d_num_ini,
         d_num_fin=body.d_num_fin,
         motivo=body.motivo,
-        xml_inutilizacion=xml_inutilizacion,
-        estado="aprobado" if resultado.get("codigo") == "0300" else "rechazado",
+        xml_inutilizacion=resultado.get("xml_inutilizacion", ""),
+        estado="aprobado" if resultado.get("aprobado") else "rechazado",
         sifen_respuesta=resultado.get("raw", "")[:4000],
     )
     db.add(inu)

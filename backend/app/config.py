@@ -37,15 +37,28 @@ class Settings(BaseSettings):
     id_csc_default: str = "0001"
     csc_secreto: str = "CAMBIAR_EN_PRODUCCION"
 
-    # SIFEN Webservices (test y producción SET Paraguay)
+    # SIFEN Webservices (Manual Técnico v150 y Guía Octubre 2024)
+    # Lotes Asíncronos
+    sifen_ws_async_lote_test: str = "https://sifen-test.set.gov.py/de/ws/async/recibe-lote.wsdl"
+    sifen_ws_async_lote_prod: str = "https://sifen.set.gov.py/de/ws/async/recibe-lote.wsdl"
+    sifen_ws_cons_lote_test: str = "https://sifen-test.set.gov.py/de/ws/consultas/consulta-lote.wsdl"
+    sifen_ws_cons_lote_prod: str = "https://sifen.set.gov.py/de/ws/consultas/consulta-lote.wsdl"
+
+    # Consultas (por CDC y RUC)
+    sifen_ws_consulta_test: str = "https://sifen-test.set.gov.py/de/ws/consultas/consulta.wsdl"
+    sifen_ws_consulta_prod: str = "https://sifen.set.gov.py/de/ws/consultas/consulta.wsdl"
+    sifen_ws_consulta_ruc_test: str = "https://sifen-test.set.gov.py/de/ws/consultas/consulta-ruc.wsdl"
+    sifen_ws_consulta_ruc_prod: str = "https://sifen.set.gov.py/de/ws/consultas/consulta-ruc.wsdl"
+
+    # Eventos e Inutilización
+    sifen_ws_eventos_test: str = "https://sifen-test.set.gov.py/de/ws/eventos/evento.wsdl"
+    sifen_ws_eventos_prod: str = "https://sifen.set.gov.py/de/ws/eventos/evento.wsdl"
+    sifen_ws_inutilizacion_test: str = "https://sifen-test.set.gov.py/de/ws/inutilizacion/inutiliza.wsdl"
+    sifen_ws_inutilizacion_prod: str = "https://sifen.set.gov.py/de/ws/inutilizacion/inutiliza.wsdl"
+
+    # Síncrono (Unitario)
     sifen_ws_url_test: str = "https://sifen-test.set.gov.py/de/ws/sync/recibe.wsdl"
     sifen_ws_url_prod: str = "https://sifen.set.gov.py/de/ws/sync/recibe.wsdl"
-    sifen_ws_eventos_test: str = "https://sifen-test.set.gov.py/de/ws/sync/evento.wsdl"
-    sifen_ws_eventos_prod: str = "https://sifen.set.gov.py/de/ws/sync/evento.wsdl"
-    sifen_ws_consulta_test: str = "https://sifen-test.set.gov.py/de/ws/sync/consulta-de.wsdl"
-    sifen_ws_consulta_prod: str = "https://sifen.set.gov.py/de/ws/sync/consulta-de.wsdl"
-    sifen_ws_inutilizacion_test: str = "https://sifen-test.set.gov.py/de/ws/sync/inutiliza.wsdl"
-    sifen_ws_inutilizacion_prod: str = "https://sifen.set.gov.py/de/ws/sync/inutiliza.wsdl"
 
     # Ambiente SIFEN: "test" o "prod"
     sifen_ambiente: str = "test"

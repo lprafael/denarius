@@ -56,11 +56,17 @@ def crear_evento(
 
     tag_evento = TIPOS_VALIDOS[body.tipo_evento]
 
-    from app.sifen.sifen_client import enviar_evento
-    resultado = enviar_evento(
+    cert = db.query(Certificado).filter(
+        Certificado.empresa_id == usuario.empresa_id, Certificado.activo == True
+    ).order_by(Certificado.id.desc()).first()
+
+    from app.sifen.sifen_client import enviar_evento_firmado
+    resultado = enviar_evento_firmado(
         tipo_evento=tag_evento,
         cdc=factura.cdc,
         motivo=body.motivo,
+        p12_path=cert.ruta_archivo if cert else None,
+        p12_password=cert.contrasena_enc if cert else "",
     )
 
     # Si es cancelación exitosa, marcar la factura

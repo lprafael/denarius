@@ -17,7 +17,7 @@ def download_manual(
         raise HTTPException(403, "Acceso denegado")
     
     # Validar archivos permitidos para evitar Path Traversal
-    allowed = ["MANUAL_USUARIO.md", "MANUAL_TECNICO.md"]
+    allowed = ["MANUAL_USUARIO.md", "MANUAL_TECNICO.md", "MANUAL_USUARIO.html"]
     if filename not in allowed:
         raise HTTPException(400, "Archivo no permitido")
     
@@ -28,9 +28,9 @@ def download_manual(
     with open(path, "rb") as f:
         content = f.read()
     
-    # Lo servimos como texto markdown para esta fase
+    media_type = "text/html" if filename.endswith(".html") else "text/markdown"
     return Response(
         content=content,
-        media_type="text/markdown",
+        media_type=media_type,
         headers={"Content-Disposition": f"attachment; filename={filename}"}
     )

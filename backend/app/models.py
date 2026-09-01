@@ -52,6 +52,7 @@ class Empresa(Base):
     productos: Mapped[list["Producto"]] = relationship(back_populates="empresa", cascade="all, delete-orphan")
     facturas_recibidas: Mapped[list["FacturaRecibida"]] = relationship(back_populates="empresa", cascade="all, delete-orphan")
     webhooks: Mapped[list["Webhook"]] = relationship(back_populates="empresa", cascade="all, delete-orphan")
+    lotes: Mapped[list["LoteDE"]] = relationship(back_populates="empresa", cascade="all, delete-orphan")
 
     # Restricción de equipos
     restriccion_equipos: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -232,6 +233,26 @@ class Factura(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
 
+    # Lote Asíncrono SIFEN
+    lote_id: Mapped[int | None] = mapped_column(ForeignKey("lote_de.id"), nullable=True, index=True)
+    lote: Mapped["LoteDE | None"] = relationship(back_populates="facturas")
+
+    # Documentos Asociados (para Notas de Crédito / Débito)
+    cdc_asociado: Mapped[str] = mapped_column(String(64), default="")
+    tipo_doc_asociado: Mapped[int] = mapped_column(Integer, default=1)  # 1=Electrónico, 2=Impreso, 3=Constancia
+    motivo_emision_nc: Mapped[int] = mapped_column(Integer, default=1)  # 1=Devolución, 2=Descuento, 3=Bonificación, 4=Crédito incobrable, 5=Recupero, 6=Anulación
+    timbrado_doc_asociado: Mapped[str] = mapped_column(String(16), default="")
+    numero_doc_asociado: Mapped[str] = mapped_column(String(32), default="")
+    fecha_doc_asociado: Mapped[str] = mapped_column(String(16), default="")
+
+    # Multidivisa y Condiciones Comerciales
+    moneda: Mapped[str] = mapped_column(String(8), default="PYG")
+    tipo_cambio: Mapped[float] = mapped_column(Float, default=1.0)
+    condicion_tipo_cambio: Mapped[int] = mapped_column(Integer, default=1)  # 1=Global, 2=Por ítem
+    descuento_global: Mapped[int] = mapped_column(Integer, default=0)
+    anticipo_global: Mapped[int] = mapped_column(Integer, default=0)
+    redondeo: Mapped[int] = mapped_column(Integer, default=0)
+
     empresa: Mapped["Empresa"] = relationship(back_populates="facturas")
     emisor: Mapped["Emisor"] = relationship(backref="facturas")
     lineas: Mapped[list["FacturaLinea"]] = relationship(back_populates="factura", cascade="all, delete-orphan")
@@ -256,6 +277,9 @@ class FacturaLinea(Base):
     d_p_uni_pro_ser: Mapped[int] = mapped_column(Integer)
     d_tasa_iva: Mapped[int] = mapped_column(Integer, default=10)
     i_afec_iva: Mapped[int] = mapped_column(Integer, default=1)
+    d_desc_item: Mapped[int] = mapped_column(Integer, default=0)
+    d_porc_des_it: Mapped[float] = mapped_column(Float, default=0.0)
+    d_inf_item: Mapped[str] = mapped_column(String(255), default="")
 
     factura: Mapped["Factura"] = relationship(back_populates="lineas")
     producto: Mapped["Producto | None"] = relationship(back_populates="lineas")
@@ -279,6 +303,29 @@ class EventoDE(Base):
     enviado_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     factura: Mapped["Factura"] = relationship(back_populates="eventos")
+
+
+# ---------------------------------------------------------------------------
+# Lote de Documentos Electrónicos (Recepción Asíncrona SIFEN)
+# ---------------------------------------------------------------------------
+class LoteDE(Base):
+    __tablename__ = "lote_de"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    empresa_id: Mapped[int] = mapped_column(ForeignKey("empresa.id"), index=True)
+    i_ti_de: Mapped[int] = mapped_column(Integer, default=1)  # 1=Factura, 5=NC, etc.
+    d_prot_cons_lote: Mapped[str] = mapped_column(String(64), default="", index=True)
+    cantidad_de: Mapped[int] = mapped_column(Integer, default=1)
+    estado: Mapped[str] = mapped_column(String(32), default="encolado")  # encolado, en_procesamiento, concluido, rechazado, error
+    sifen_cod_res: Mapped[str] = mapped_column(String(16), default="")
+    sifen_msg_res: Mapped[str] = mapped_column(Text, default="")
+    sifen_respuesta_raw: Mapped[str] = mapped_column(Text, default="")
+    xml_lote_zip_b64: Mapped[str] = mapped_column(Text, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+    consultado_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    empresa: Mapped["Empresa"] = relationship(back_populates="lotes")
+    facturas: Mapped[list["Factura"]] = relationship(back_populates="lote")
 
 
 # ---------------------------------------------------------------------------
@@ -351,39 +398,58 @@ class Cliente(Base):
     __table_args__ = (UniqueConstraint('empresa_id', 'ruc_con_dv', name='_cliente_empresa_ruc_uc'),)
 
 # ---------------------------------------------------------------------------
-# Geografía SIFEN (departamento, distrito, barrio)
+# Geografía SIFEN (departamento, distrito, ciudad/localidad, barrio)
 # ---------------------------------------------------------------------------
 class GeoDepartamento(Base):
     __tablename__ = "geo_departamento"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    nombre: Mapped[str] = mapped_column(String(128), unique=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Código SIFEN (1..18)
+    nombre: Mapped[str] = mapped_column(String(128))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
     distritos: Mapped[list["GeoDistrito"]] = relationship(back_populates="departamento", cascade="all, delete-orphan")
 
+
 class GeoDistrito(Base):
     __tablename__ = "geo_distrito"
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Código SIFEN (1..272)
     nombre: Mapped[str] = mapped_column(String(128))
     departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
     departamento: Mapped["GeoDepartamento"] = relationship(back_populates="distritos")
-    barrios: Mapped[list["GeoBarrio"]] = relationship(back_populates="distrito", cascade="all, delete-orphan")
+    ciudades: Mapped[list["GeoCiudad"]] = relationship(back_populates="distrito", cascade="all, delete-orphan")
+
+
+class GeoCiudad(Base):
+    __tablename__ = "geo_ciudad"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # Código SIFEN (1..6766)
+    nombre: Mapped[str] = mapped_column(String(128))
+    distrito_id: Mapped[int] = mapped_column(ForeignKey("geo_distrito.id"), index=True)
+    departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
+
+    distrito: Mapped["GeoDistrito"] = relationship(back_populates="ciudades")
+    departamento: Mapped["GeoDepartamento"] = relationship("GeoDepartamento", backref="ciudades")
+    barrios: Mapped[list["GeoBarrio"]] = relationship(back_populates="ciudad", cascade="all, delete-orphan")
+
 
 class GeoBarrio(Base):
     __tablename__ = "geo_barrio"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    codigo_barrio: Mapped[int] = mapped_column(Integer)
     nombre: Mapped[str] = mapped_column(String(128))
-    departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
+    ciudad_id: Mapped[int] = mapped_column(ForeignKey("geo_ciudad.id"), index=True)
     distrito_id: Mapped[int] = mapped_column(ForeignKey("geo_distrito.id"), index=True)
+    departamento_id: Mapped[int] = mapped_column(ForeignKey("geo_departamento.id"), index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
 
+    ciudad: Mapped["GeoCiudad"] = relationship(back_populates="barrios")
+    distrito: Mapped["GeoDistrito"] = relationship("GeoDistrito", backref="barrios")
     departamento: Mapped["GeoDepartamento"] = relationship("GeoDepartamento", backref="barrios")
-    distrito: Mapped["GeoDistrito"] = relationship(back_populates="barrios")
 
 # ---------------------------------------------------------------------------
 # Equipo Autorizado

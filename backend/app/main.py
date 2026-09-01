@@ -8,7 +8,7 @@ from app.database import Base, engine
 from app.routers import (
     auth, emisor, facturas, usuarios, certificados, eventos, 
     inutilizacion, auditoria, empresas, docs, clientes, equipos,
-    productos, compras, analitica, presupuestos
+    productos, compras, analitica, presupuestos, geo, lotes
 )
 
 # Crear tablas al inicio
@@ -16,9 +16,12 @@ Base.metadata.create_all(bind=engine)
 
 # Ensure logo_url column can store large data URLs
 from sqlalchemy import text
-with engine.begin() as conn:
-    conn.execute(text("ALTER TABLE empresa ALTER COLUMN logo_url TYPE TEXT"))
-
+try:
+    with engine.begin() as conn:
+        if "postgresql" in str(engine.url):
+            conn.execute(text("ALTER TABLE empresa ALTER COLUMN logo_url TYPE TEXT"))
+except Exception:
+    pass
 
 app = FastAPI(
 
@@ -54,6 +57,8 @@ app.include_router(productos.router)
 app.include_router(compras.router)
 app.include_router(analitica.router)
 app.include_router(presupuestos.router)
+app.include_router(geo.router)
+app.include_router(lotes.router)
 
 
 

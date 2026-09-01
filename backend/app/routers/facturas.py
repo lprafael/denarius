@@ -140,16 +140,24 @@ def crear(
     fecha_iso = fe_emi.date().isoformat()
     cod_seg = "".join(str(random.randint(0, 9)) for _ in range(9))
 
-    # Cálculo de totales e IVA
+    # Cálculo de totales e IVA con descuentos, redondeos y multidivisa
     lineas_calc = [
         LineaCalculo(
             d_p_uni_pro_ser=ln.d_p_uni_pro_ser,
             d_cant_pro_ser=ln.d_cant_pro_ser,
             d_tasa_iva=ln.d_tasa_iva,
+            i_afec_iva=ln.i_afec_iva,
+            d_desc_item=ln.d_desc_item,
+            d_porc_des_it=ln.d_porc_des_it,
         )
         for ln in body.lineas
     ]
-    detalles, tot = calcular_totales_lineas(lineas_calc)
+    detalles, tot = calcular_totales_lineas(
+        lineas=lineas_calc,
+        descuento_global=body.descuento_global or 0,
+        anticipo_global=body.anticipo_global or 0,
+        redondeo=body.redondeo or 0,
+    )
 
     # Generación de CDC
     try:
@@ -182,8 +190,7 @@ def crear(
         csc_secreto=emisor.csc_secreto,
     )
 
-
-    # Crear Factura en DB
+    # Crear Factura / DE en DB
     factura = Factura(
         empresa_id=usuario.empresa_id,
         emisor_id=emisor.id,
@@ -208,6 +215,18 @@ def crear(
         d_cod_cliente=body.d_cod_cliente,
         i_cond_ope=body.i_cond_ope,
         d_plazo_cre=body.d_plazo_cre,
+        cdc_asociado=body.cdc_asociado or "",
+        tipo_doc_asociado=body.tipo_doc_asociado or 1,
+        motivo_emision_nc=body.motivo_emision_nc or 1,
+        timbrado_doc_asociado=body.timbrado_doc_asociado or "",
+        numero_doc_asociado=body.numero_doc_asociado or "",
+        fecha_doc_asociado=body.fecha_doc_asociado or "",
+        moneda=body.moneda or "PYG",
+        tipo_cambio=body.tipo_cambio or 1.0,
+        condicion_tipo_cambio=body.condicion_tipo_cambio or 1,
+        descuento_global=body.descuento_global or 0,
+        anticipo_global=body.anticipo_global or 0,
+        redondeo=body.redondeo or 0,
         d_tot_gral_ope=tot.d_tot_gral_ope,
         d_tot_iva=tot.d_tot_iva,
         d_car_qr=d_car_qr,
@@ -229,7 +248,10 @@ def crear(
             d_cant_pro_ser=ln.d_cant_pro_ser,
             d_p_uni_pro_ser=ln.d_p_uni_pro_ser,
             d_tasa_iva=ln.d_tasa_iva,
-            i_afec_iva=1 if ln.d_tasa_iva in (5, 10) else 4,
+            i_afec_iva=ln.i_afec_iva,
+            d_desc_item=ln.d_desc_item,
+            d_porc_des_it=ln.d_porc_des_it,
+            d_inf_item=ln.d_inf_item or "",
         ))
 
     db.commit()

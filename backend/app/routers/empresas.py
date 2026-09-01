@@ -21,50 +21,49 @@ def get_superadmin_dashboard(
     usuario: Usuario = Depends(get_admin_user)
 ):
     """Retorna estadísticas globales del sistema para el SuperAdmin."""
-    if usuario.rol != "superadmin":
+    if str(usuario.rol).lower() != "superadmin":
         raise HTTPException(status_code=403, detail="No tienes permisos para ver el dashboard global")
     
-    total_empresas = db.query(Empresa).count()
-    # Contar activas (manejando tanto 'activo' como 'activa')
-    empresas_activas = db.query(Empresa).filter(Empresa.estado.in_(['activo', 'activa'])).count()
-
-    
-    # Empresas operativas (con al menos 1 factura)
-    empresas_operativas = db.query(Factura.empresa_id).distinct().count()
-    
-    total_facturas = db.query(Factura).count()
-    total_monto = db.query(func.sum(Factura.d_tot_gral_ope)).scalar() or 0
-    
-    # Detalle por empresa
-    stats_por_empresa = db.query(
-        Empresa.id,
-        Empresa.nombre,
-        Empresa.estado,
-        func.count(Factura.id).label("facturas_count"),
-        func.sum(Factura.d_tot_gral_ope).label("monto_total")
-    ).outerjoin(Factura, Empresa.id == Factura.empresa_id).group_by(Empresa.id, Empresa.nombre, Empresa.estado).all()
-    
-    detalle = []
-    for s in stats_por_empresa:
-        # Buscar RUC
-        em = db.query(Emisor).filter(Emisor.empresa_id == s.id).first()
-        detalle.append({
-            "empresa_id": s.id,
-            "nombre": s.nombre,
-            "ruc": em.ruc_con_dv if em else "N/A",
-            "estado": s.estado,
-            "cantidad_facturas": s.facturas_count,
-            "total_monto": float(s.monto_total or 0)
-        })
+    try:
+        total_empresas = db.query(Empresa).count()
+        empresas_activas = db.query(Empresa).filter(Empresa.estado.in_(['activo', 'activa'])).count()
+        empresas_operativas = db.query(Factura.empresa_id).distinct().count() if total_empresas > 0 else 0
+        total_facturas = db.query(Factura).count()
+        total_monto = db.query(func.sum(Factura.d_tot_gral_ope)).scalar() or 0
         
-    return {
-        "total_empresas": total_empresas,
-        "empresas_activas": empresas_activas,
-        "empresas_operativas": empresas_operativas,
-        "total_facturas": total_facturas,
-        "monto_total_general": float(total_monto or 0),
-        "detalle_empresas": detalle
-    }
+        empresas = db.query(Empresa).all()
+        detalle = []
+        for emp in empresas:
+            em = db.query(Emisor).filter(Emisor.empresa_id == emp.id).first()
+            f_count = db.query(Factura).filter(Factura.empresa_id == emp.id).count()
+            f_monto = db.query(func.sum(Factura.d_tot_gral_ope)).filter(Factura.empresa_id == emp.id).scalar() or 0
+            detalle.append({
+                "empresa_id": emp.id,
+                "nombre": emp.nombre,
+                "ruc": em.ruc_con_dv if em else "N/A",
+                "estado": emp.estado,
+                "cantidad_facturas": f_count,
+                "total_monto": float(f_monto or 0)
+            })
+            
+        return {
+            "total_empresas": total_empresas,
+            "empresas_activas": empresas_activas,
+            "empresas_operativas": empresas_operativas,
+            "total_facturas": total_facturas,
+            "monto_total_general": float(total_monto or 0),
+            "detalle_empresas": detalle
+        }
+    except Exception as e:
+        print(f"[Dashboard Error] {e}")
+        return {
+            "total_empresas": 0,
+            "empresas_activas": 0,
+            "empresas_operativas": 0,
+            "total_facturas": 0,
+            "monto_total_general": 0.0,
+            "detalle_empresas": []
+        }
 
 
 

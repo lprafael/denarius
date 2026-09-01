@@ -208,10 +208,12 @@ export function App() {
 
 
   useEffect(() => {
-    if (!window.google) return;
+    const googleClientId = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID || "";
+    if (!window.google || !googleClientId || googleClientId.includes("772772772")) return;
+
     if (!googleInitialized.current) {
         window.google.accounts.id.initialize({
-          client_id: "721727768822-772772772.apps.googleusercontent.com", 
+          client_id: googleClientId, 
           callback: handleGoogleLogin,
           use_fedcm_for_prompt: true,
         });
@@ -220,7 +222,6 @@ export function App() {
     if (!authed) {
       const btn = document.getElementById("google-login-btn");
       if (btn) window.google.accounts.id.renderButton(btn, { theme: "outline", size: "large", width: 250 });
-      window.google.accounts.id.prompt();
     }
     const regBtn = document.getElementById("reg-google-btn");
     if (regBtn) window.google.accounts.id.renderButton(regBtn, { theme: "outline", size: "large", text: "signup_with" });

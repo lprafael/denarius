@@ -14,14 +14,40 @@ from app.routers import (
 # Crear tablas al inicio
 Base.metadata.create_all(bind=engine)
 
-# Ensure logo_url column can store large data URLs
+# Migraciones automáticas seguras para PostgreSQL
 from sqlalchemy import text
 try:
     with engine.begin() as conn:
         if "postgresql" in str(engine.url):
-            conn.execute(text("ALTER TABLE empresa ALTER COLUMN logo_url TYPE TEXT"))
-except Exception:
-    pass
+            # Empresa
+            conn.execute(text("ALTER TABLE empresa ALTER COLUMN logo_url TYPE TEXT;"))
+            conn.execute(text("ALTER TABLE empresa ADD COLUMN IF NOT EXISTS max_equipos INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE empresa ADD COLUMN IF NOT EXISTS restriccion_equipos BOOLEAN DEFAULT FALSE;"))
+            conn.execute(text("ALTER TABLE empresa ADD COLUMN IF NOT EXISTS email_admin VARCHAR(255) DEFAULT '';"))
+            conn.execute(text("ALTER TABLE empresa ADD COLUMN IF NOT EXISTS plantilla_kude VARCHAR(64) DEFAULT 'kude_ticket.html';"))
+            conn.execute(text("ALTER TABLE empresa ADD COLUMN IF NOT EXISTS texto_pie_presupuesto TEXT DEFAULT '';"))
+            
+            # Factura
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS lote_id INTEGER;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS cdc_asociado VARCHAR(64) DEFAULT '';"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS tipo_doc_asociado INTEGER DEFAULT 1;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS motivo_emision_nc INTEGER DEFAULT 1;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS timbrado_doc_asociado VARCHAR(16) DEFAULT '';"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS numero_doc_asociado VARCHAR(32) DEFAULT '';"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS fecha_doc_asociado VARCHAR(16) DEFAULT '';"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS moneda VARCHAR(8) DEFAULT 'PYG';"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS tipo_cambio FLOAT DEFAULT 1.0;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS condicion_tipo_cambio INTEGER DEFAULT 1;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS descuento_global INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS anticipo_global INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE factura ADD COLUMN IF NOT EXISTS redondeo INTEGER DEFAULT 0;"))
+
+            # FacturaLinea
+            conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_desc_item INTEGER DEFAULT 0;"))
+            conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_porc_des_it FLOAT DEFAULT 0.0;"))
+            conn.execute(text("ALTER TABLE factura_linea ADD COLUMN IF NOT EXISTS d_inf_item VARCHAR(255) DEFAULT '';"))
+except Exception as e:
+    print(f"[DB Migration Warning] {e}")
 
 app = FastAPI(
 
